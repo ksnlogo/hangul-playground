@@ -2,22 +2,23 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#FFF8EE" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="한글 놀이터" />
 <link rel="manifest" href="manifest.webmanifest" />
-<title>우리 아이 한글 놀이터 v0.2</title>
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<title>우리 아이 한글 놀이터 v0.4</title>
 <style>
   :root{
     --bg:#FFF8EE;
     --card:#FFFFFF;
     --ink:#2F2F33;
     --muted:#74747C;
-    --primary:#FF8A5B;
+    --primary:#C94F24;
     --primary2:#FFD36E;
-    --green:#69C58A;
+    --green:#267A45;
     --blue:#6FA8FF;
     --purple:#9C7BFF;
     --line:#EAE4DB;
@@ -31,9 +32,14 @@
     background:linear-gradient(180deg,#FFF8EE 0%,#FFFDF8 100%);
     color:var(--ink);
     min-height:100vh;
+    min-height:100dvh;
   }
   button{font:inherit}
-  .app{max-width:980px;margin:0 auto;padding:18px}
+  .app{
+    max-width:980px;margin:0 auto;
+    padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))
+  }
   .top{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     margin-bottom:14px
@@ -59,7 +65,7 @@
   }
   .schedule strong{font-size:18px}
   .week{
-    display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:12px
+    display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:12px
   }
   .day{
     text-align:center;padding:9px 5px;border-radius:14px;background:#fff;border:1px solid #F0E7DA;
@@ -67,7 +73,10 @@
   }
   .day.active{outline:3px solid var(--primary);background:#FFF4EE}
   .day.done{background:#EAF8EF;border-color:#CBECD6}
-  .day.rest{opacity:.55}
+  .day.locked{opacity:.42;background:#F3F0EB;color:var(--muted)}
+  .progress-child{margin-top:12px}
+  .progress-child-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+  .progress-child-head b{color:#8F3A1C}
   .screen{display:none}
   .screen.active{display:block}
   .child-grid{
@@ -84,6 +93,13 @@
   .child h2{font-size:28px;margin:0 0 6px}
   .child p{margin:0;color:#555b67;line-height:1.55}
   .home-note{margin-top:16px;font-size:14px;color:var(--muted)}
+  .review-action{
+    margin-top:16px;padding:16px;border-radius:20px;background:#FFF7DA;border:1px solid #F0D98A;
+    display:flex;align-items:center;justify-content:space-between;gap:12px
+  }
+  .review-action[hidden]{display:none}
+  .review-action strong{display:block;font-size:18px}
+  .review-action span{display:block;margin-top:4px;color:var(--muted);font-size:14px;line-height:1.45}
   .lesson-head{
     display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px
   }
@@ -137,16 +153,19 @@
   .result h2{font-size:34px;margin:5px 0}
   .result p{color:var(--muted);font-size:17px;line-height:1.7}
   .parent{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px
+    display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px
   }
   .stat{
     background:#FAF8F5;border-radius:18px;padding:16px
   }
   .stat b{font-size:25px;display:block;margin-top:5px}
+  .stat small{display:block;margin-top:6px;color:var(--muted);font-weight:700}
   .tiny{font-size:12px;color:var(--muted)}
   .footer-note{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.6}
   .modal{
-    position:fixed;inset:0;background:rgba(20,20,24,.35);display:none;align-items:center;justify-content:center;padding:18px
+    position:fixed;inset:0;background:rgba(20,20,24,.35);display:none;align-items:center;justify-content:center;
+    padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))
   }
   .modal.show{display:flex}
   .modalbox{max-width:520px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow)}
@@ -161,6 +180,7 @@
     .choice{min-height:72px}
     .week{gap:4px}
     .day{font-size:11px;padding:8px 2px}
+    .review-action{align-items:stretch;flex-direction:column}
   }
 </style>
 </head>
@@ -169,7 +189,7 @@
   <div class="top">
     <div>
       <div class="brand">🌱 우리 아이 한글 놀이터</div>
-      <div class="sub">하루 10분 · 평일 학습 · 주말 주간복습</div>
+      <div class="sub">하루 10분 · 5회 순차 학습 · 주간복습</div>
     </div>
     <button class="pill" onclick="openParent()">부모 보기</button>
   </div>
@@ -178,33 +198,46 @@
     <div class="hero">
       <div class="card">
         <h1 id="welcomeTitle">오늘도 한글이랑 놀아볼까요?</h1>
-        <p id="welcomeText">아이를 선택하면 오늘의 학습이 시작됩니다. 2일차부터는 앞의 약 3분을 전날 복습에 사용하고, 이후 새 글자를 배웁니다.</p>
+        <p id="welcomeText">아이를 선택하면 각자의 진도에 맞는 학습이 시작됩니다. 두 번째 학습부터는 앞의 약 3분을 이전 학습 복습에 사용하고, 이후 새 글자를 배웁니다.</p>
         <div class="child-grid">
           <button class="child older" onclick="chooseChild('older')">
             <div class="avatar">👦🏻</div>
-            <h2>첫째 시작</h2>
+            <h2>태윤 시작</h2>
             <p>2021년 3월생<br>글자 → 낱말 → 간단한 조합</p>
           </button>
           <button class="child younger" onclick="chooseChild('younger')">
             <div class="avatar">🧒🏻</div>
-            <h2>둘째 시작</h2>
+            <h2>재윤 시작</h2>
             <p>2023년 2월생<br>그림 → 소리 → 첫 글자 찾기</p>
           </button>
         </div>
-        <div class="home-note">※ 가장 안정적인 사용 방법: 파일을 내려받아 Chrome 또는 Edge에서 직접 열어주세요. 학습 기록은 해당 브라우저에 저장됩니다.</div>
+        <div id="reviewAction" class="review-action" hidden>
+          <div>
+            <strong id="reviewActionTitle">주간복습 가능</strong>
+            <span id="reviewActionText">5회 학습을 모두 마쳤어요.</span>
+          </div>
+          <button id="reviewActionButton" class="btn primary" onclick="startSelectedWeeklyReview()">주간복습 시작</button>
+        </div>
       </div>
 
       <div class="schedule">
-        <strong>📅 이번 주 학습</strong>
-        <div class="tiny" style="margin-top:5px">월~금 학습, 토·일 중 하루는 주중 복습</div>
-        <div class="week" id="weekStrip"></div>
+        <strong>📚 학습 순서</strong>
+        <div class="tiny" style="margin-top:5px">요일과 관계없이 아이별 완료 순서로 진행</div>
+        <div class="progress-child">
+          <div class="progress-child-head"><span>태윤 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
+          <div class="week" id="olderProgressStrip"></div>
+        </div>
+        <div class="progress-child">
+          <div class="progress-child-head"><span>재윤 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
+          <div class="week" id="youngerProgressStrip"></div>
+        </div>
         <div style="margin-top:16px">
-          <div class="plan-row"><span>월요일</span><b>ㄱ</b></div>
-          <div class="plan-row"><span>화요일</span><b>복습 + ㄴ</b></div>
-          <div class="plan-row"><span>수요일</span><b>복습 + ㄷ</b></div>
-          <div class="plan-row"><span>목요일</span><b>복습 + ㄹ</b></div>
-          <div class="plan-row"><span>금요일</span><b>복습 + ㅁ</b></div>
-          <div class="plan-row"><span>주말 하루</span><b>ㄱ·ㄴ·ㄷ·ㄹ·ㅁ 주간복습</b></div>
+          <div class="plan-row"><span>1회 학습</span><b>ㄱ</b></div>
+          <div class="plan-row"><span>2회 학습</span><b>복습 + ㄴ</b></div>
+          <div class="plan-row"><span>3회 학습</span><b>복습 + ㄷ</b></div>
+          <div class="plan-row"><span>4회 학습</span><b>복습 + ㄹ</b></div>
+          <div class="plan-row"><span>5회 학습</span><b>복습 + ㅁ</b></div>
+          <div class="plan-row"><span>5회 완료 후</span><b>ㄱ·ㄴ·ㄷ·ㄹ·ㅁ 주간복습</b></div>
         </div>
       </div>
     </div>
@@ -258,15 +291,16 @@
 </div>
 
 <div id="parentModal" class="modal" onclick="closeParent(event)">
-  <div class="modalbox">
-    <h3>👨‍👩‍👦 부모용 학습 현황</h3>
+  <div class="modalbox" role="dialog" aria-modal="true" aria-labelledby="parentTitle">
+    <h3 id="parentTitle">👨‍👩‍👦 부모용 학습 현황</h3>
     <div class="parent">
-      <div class="stat"><span>첫째 별</span><b id="pOlderStars">0</b></div>
-      <div class="stat"><span>둘째 별</span><b id="pYoungerStars">0</b></div>
-      <div class="stat"><span>이번 주 완료</span><b id="pWeekDone">0회</b></div>
+      <div class="stat"><span>태윤 별</span><b id="pOlderStars">0</b></div>
+      <div class="stat"><span>태윤 진도</span><b id="pOlderProgress">0 / 5</b><small id="pOlderReview">복습 잠김</small></div>
+      <div class="stat"><span>재윤 별</span><b id="pYoungerStars">0</b></div>
+      <div class="stat"><span>재윤 진도</span><b id="pYoungerProgress">0 / 5</b><small id="pYoungerReview">복습 잠김</small></div>
     </div>
     <div class="footer-note">
-      권장 운영: 월요일은 새 학습 10분, 화~금은 전날 복습 약 3분 + 새 학습 약 7분, 주말은 토·일 중 하루만 주중 전체 복습을 진행합니다.
+      권장 운영: 첫 학습은 ㄱ부터 시작하고, 2회차부터 이전 학습 복습 약 3분 + 새 학습 약 7분으로 진행합니다. 5회 학습을 마치면 주간복습이 열립니다.
     </div>
     <div class="controls"><button class="btn primary" onclick="document.getElementById('parentModal').classList.remove('show')">닫기</button></div>
   </div>
@@ -274,6 +308,9 @@
 
 <script>
 const weekLetters = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ'];
+const letterSpeech = {
+  'ㄱ':'기역', 'ㄴ':'니은', 'ㄷ':'디귿', 'ㄹ':'리을', 'ㅁ':'미음', 'ㅂ':'비읍', 'ㅏ':'아'
+};
 
 const words = {
   'ㄱ': [
@@ -325,76 +362,172 @@ let state = {
   index:0,
   stars:0,
   answered:false,
-  mode:'weekday',
-  phase:'new',
+  mode:'lesson',
+  lessonIndex:0,
   currentLetter:'ㄱ'
 };
 
-let memoryFallback = {"older":{"stars":0},"younger":{"stars":0},"done":{}};
+const STORAGE_KEY = 'hangulPlaygroundV04';
+const LEGACY_STORAGE_KEY = 'hangulPlaygroundV02';
+
+function clone(data){ return JSON.parse(JSON.stringify(data)); }
+function emptyProfile(){
+  return {
+    stars:0,
+    completedLessons:0,
+    records:{},
+    weeklyReview:{completed:false,bestStars:0,completedAt:null}
+  };
+}
+function createDefaultData(){
+  return {version:4,children:{older:emptyProfile(),younger:emptyProfile()}};
+}
+function safeCount(value,max=Number.MAX_SAFE_INTEGER){
+  const number=Number(value);
+  return Number.isFinite(number) ? Math.min(max,Math.max(0,Math.floor(number))) : 0;
+}
+function normalizeRecord(record){
+  if(!record || typeof record!=='object') return null;
+  return {
+    completed:Boolean(record.completed),
+    bestStars:safeCount(record.bestStars),
+    completedAt:typeof record.completedAt==='string' ? record.completedAt : null
+  };
+}
+function normalizeProfile(profile){
+  const clean=emptyProfile();
+  if(!profile || typeof profile!=='object') return clean;
+  clean.stars=safeCount(profile.stars);
+  clean.completedLessons=safeCount(profile.completedLessons,weekLetters.length);
+  if(profile.records && typeof profile.records==='object'){
+    weekLetters.forEach((letter,index)=>{
+      const key='lesson-'+index;
+      const record=normalizeRecord(profile.records[key]);
+      if(record){
+        clean.records[key]=record;
+        if(record.completed) clean.completedLessons=Math.max(clean.completedLessons,index+1);
+      }
+    });
+  }
+  const review=normalizeRecord(profile.weeklyReview);
+  if(review) clean.weeklyReview=review;
+  return clean;
+}
+function normalizeData(data){
+  const clean=createDefaultData();
+  if(!data || typeof data!=='object') return clean;
+  const children=data.children && typeof data.children==='object' ? data.children : {};
+  clean.children.older=normalizeProfile(children.older);
+  clean.children.younger=normalizeProfile(children.younger);
+  return clean;
+}
+function migrateLegacy(data){
+  const migrated=createDefaultData();
+  if(data && typeof data==='object'){
+    migrated.children.older.stars=safeCount(data.older && data.older.stars);
+    migrated.children.younger.stars=safeCount(data.younger && data.younger.stars);
+  }
+  return migrated;
+}
+
+let memoryFallback = createDefaultData();
 
 function store(){
+  let data=null;
   try{
-    const raw = localStorage.getItem('hangulPlaygroundV02');
-    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(memoryFallback));
-  }catch(e){
-    return JSON.parse(JSON.stringify(memoryFallback));
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw) data=normalizeData(JSON.parse(raw));
+  }catch(e){}
+  if(!data){
+    try{
+      const legacy=localStorage.getItem(LEGACY_STORAGE_KEY);
+      if(legacy) data=migrateLegacy(JSON.parse(legacy));
+    }catch(e){}
   }
+  if(!data) data=normalizeData(memoryFallback);
+  memoryFallback=clone(data);
+  try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }catch(e){}
+  return clone(data);
 }
 function save(data){
-  memoryFallback = JSON.parse(JSON.stringify(data));
+  const clean=normalizeData(data);
+  memoryFallback=clone(clean);
   try{
-    localStorage.setItem('hangulPlaygroundV02', JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(clean));
   }catch(e){
     // 미리보기/보안 제한 환경에서는 현재 실행 중 메모리에만 저장
   }
-}
-
-function isoWeekKey(date=new Date()){
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-  const weekNo = Math.ceil((((d-yearStart)/86400000)+1)/7);
-  return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2,'0');
-}
-function dateKey(date=new Date()){
-  return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
 }
 function show(id){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function dayIndex(){
-  const d = new Date().getDay(); // 0 Sun ... 6 Sat
-  if(d===0 || d===6) return 'weekend';
-  return d-1; // Mon=0
+function progressText(profile){
+  const review=profile.weeklyReview.completed ? ' · 복습 완료' :
+    (profile.completedLessons>=weekLetters.length ? ' · 복습 가능' : '');
+  return profile.completedLessons+' / '+weekLetters.length+review;
 }
-function updateWeekStrip(){
-  const labels=['월','화','수','목','금','토','일'];
-  const dnow=new Date().getDay();
-  const current = dnow===0?6:dnow-1;
-  const data=store(), wk=isoWeekKey();
-  const done=data.done[wk] || {};
-  const el=document.getElementById('weekStrip');
+function renderProgressStrip(elementId,profile){
+  const labels=['1회','2회','3회','4회','5회','복습'];
+  const el=document.getElementById(elementId);
   el.innerHTML='';
-  labels.forEach((x,i)=>{
+  labels.forEach((label,index)=>{
     const div=document.createElement('div');
     div.className='day';
-    if(i===current) div.classList.add('active');
-    if((i<5 && done['day'+i]) || (i>=5 && done.weekend)) div.classList.add('done');
-    if(i===6 && done.weekend) div.classList.add('rest');
-    div.textContent=x;
+    div.textContent=label;
+    if(index<weekLetters.length){
+      if(index<profile.completedLessons) div.classList.add('done');
+      else if(index===profile.completedLessons) div.classList.add('active');
+    }else if(profile.weeklyReview.completed){
+      div.classList.add('done');
+    }else if(profile.completedLessons>=weekLetters.length){
+      div.classList.add('active');
+    }else{
+      div.classList.add('locked');
+    }
     el.appendChild(div);
   });
 }
+function updateProgressDisplay(){
+  const data=store();
+  renderProgressStrip('olderProgressStrip',data.children.older);
+  renderProgressStrip('youngerProgressStrip',data.children.younger);
+  document.getElementById('homeOlderProgress').textContent=progressText(data.children.older);
+  document.getElementById('homeYoungerProgress').textContent=progressText(data.children.younger);
+  updateReviewAction();
+}
+function updateReviewAction(){
+  const action=document.getElementById('reviewAction');
+  if(!state.child){ action.hidden=true; return; }
+  const profile=store().children[state.child];
+  if(profile.completedLessons<weekLetters.length){ action.hidden=true; return; }
+  const who=state.child==='older'?'태윤':'재윤';
+  action.hidden=false;
+  document.getElementById('reviewActionTitle').textContent=profile.weeklyReview.completed
+    ? who+' · 이번 주 학습 완료'
+    : who+' · 주간복습 가능';
+  document.getElementById('reviewActionText').textContent=profile.weeklyReview.completed
+    ? '주간복습까지 모두 마쳤어요. 원하면 다시 연습할 수 있어요.'
+    : '5회 학습을 모두 마쳤어요. 준비되면 복습을 시작하세요.';
+  document.getElementById('reviewActionButton').textContent=profile.weeklyReview.completed
+    ? '다시 연습하기'
+    : '주간복습 시작';
+}
 function chooseChild(child){
   state.child=child;
-  const di=dayIndex();
-  if(di==='weekend'){
-    startWeekendReview();
-  } else {
-    startWeekday(di);
+  const profile=store().children[child];
+  if(profile.completedLessons>=weekLetters.length){
+    state.mode=profile.weeklyReview.completed?'complete':'review-ready';
+    show('home');
+    updateProgressDisplay();
+    return;
   }
+  startLesson(profile.completedLessons);
+}
+function startSelectedWeeklyReview(){
+  if(!state.child) return;
+  const profile=store().children[state.child];
+  if(profile.completedLessons>=weekLetters.length) startWeeklyReview();
 }
 function shuffled(a){ return [...a].sort(()=>Math.random()-.5); }
 
@@ -405,12 +538,13 @@ function makeQuizItem(letter, wordObj, phase){
   return {type:'quiz', letter, wordObj, phase};
 }
 
-function startWeekday(di){
-  state.mode='weekday';
-  state.currentLetter=weekLetters[di];
+function startLesson(lessonIndex){
+  state.mode='lesson';
+  state.lessonIndex=lessonIndex;
+  state.currentLetter=weekLetters[lessonIndex];
   state.items=[];
-  if(di>0){
-    const prev=weekLetters[di-1];
+  if(lessonIndex>0){
+    const prev=weekLetters[lessonIndex-1];
     const prevWords=shuffled(words[prev]).slice(0,2);
     prevWords.forEach(w=>state.items.push(makeQuizItem(prev,w,'review')));
   }
@@ -425,8 +559,9 @@ function startWeekday(di){
   }
   begin();
 }
-function startWeekendReview(){
-  state.mode='weekend';
+function startWeeklyReview(){
+  state.mode='weekreview';
+  state.lessonIndex=weekLetters.length;
   state.items=[];
   weekLetters.forEach(letter=>{
     const w=shuffled(words[letter])[0];
@@ -449,19 +584,19 @@ function render(){
   document.getElementById('feedback').textContent='';
   document.getElementById('choices').innerHTML='';
   document.getElementById('progressText').textContent=(state.index+1)+' / '+state.items.length;
-  document.getElementById('progressBar').style.width=((state.index/state.items.length)*100)+'%';
+  document.getElementById('progressBar').style.width=(((state.index+1)/state.items.length)*100)+'%';
   document.getElementById('stars').textContent=state.stars;
 
   const isReview=item.phase==='review' || item.phase==='weekreview';
   document.getElementById('phaseBadge').textContent =
-    item.phase==='review' ? '🔁 전날 복습 · 약 3분' :
-    item.phase==='weekreview' ? '🧩 주중 전체 복습 · 약 10분' :
+    item.phase==='review' ? '🔁 이전 학습 복습 · 약 3분' :
+    item.phase==='weekreview' ? '🧩 5회 학습 복습 · 약 10분' :
     '🌱 새 학습 · 약 7분';
   document.getElementById('timeText').textContent =
-    state.mode==='weekend' ? '주말 복습' : (dayIndex()===0 ? '새 학습 중심' : '복습 3분 + 새 학습 7분');
+    state.mode==='weekreview' ? '주간 복습' : (state.lessonIndex===0 ? '새 학습 중심' : '복습 3분 + 새 학습 7분');
 
   if(item.type==='learn'){
-    document.getElementById('lessonTitle').textContent=(state.child==='older'?'첫째':'둘째')+' · '+item.letter+' 배우기';
+    document.getElementById('lessonTitle').textContent=(state.child==='older'?'태윤':'재윤')+' · '+item.letter+' 배우기';
     document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
     document.getElementById('bigLetter').textContent=item.letter;
     document.getElementById('word').textContent=item.wordObj.word;
@@ -472,27 +607,27 @@ function render(){
     const btn=document.createElement('button');
     btn.className='choice correct';
     btn.textContent='알겠어요 👍';
-    btn.onclick=()=>{state.answered=true; document.getElementById('nextBtn').disabled=false; speak(item.wordObj.word+'. '+item.letter+'로 시작해요.');};
+    btn.onclick=()=>{state.answered=true; document.getElementById('nextBtn').disabled=false; speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');};
     document.getElementById('choices').appendChild(btn);
-    speak(item.letter+'. '+item.wordObj.word);
+    speak(spokenLetter(item.letter)+'. '+item.wordObj.word);
     return;
   }
 
   if(item.type==='combine'){
     const vowelMap={'ㄱ':'가','ㄴ':'나','ㄷ':'다','ㄹ':'라','ㅁ':'마','ㅂ':'바'};
-    document.getElementById('lessonTitle').textContent='첫째 · 글자 만들기';
+    document.getElementById('lessonTitle').textContent='태윤 · 글자 만들기';
     document.getElementById('bigEmoji').textContent='🧩';
     document.getElementById('bigLetter').textContent=item.letter+' + ㅏ';
     document.getElementById('word').textContent='무슨 글자가 될까요?';
     document.getElementById('hint').textContent='자음과 모음을 합쳐 보세요.';
     const answer=vowelMap[item.letter];
     const options=shuffled([answer,'사','자'].filter((v,i,a)=>a.indexOf(v)===i)).slice(0,3);
-    renderChoices(options, answer, item.letter+'과 아가 만나서 '+answer);
+    renderChoices(options, answer, spokenLetter(item.letter)+'과 아가 만나서 '+answer);
     return;
   }
 
   document.getElementById('lessonTitle').textContent=
-    (state.child==='older'?'첫째':'둘째') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
+    (state.child==='older'?'태윤':'재윤') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
   document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
   document.getElementById('bigLetter').textContent='?';
   document.getElementById('word').textContent=item.wordObj.word;
@@ -501,7 +636,7 @@ function render(){
     ? '"'+item.wordObj.word+'"의 첫 글자를 골라보세요.'
     : '그림 이름을 듣고 첫 글자를 찾아보세요.';
   const opts=shuffled([item.letter, ...distractors[item.letter].slice(0,2)]);
-  renderChoices(opts,item.letter,item.wordObj.word+'의 첫 글자는 '+item.letter);
+  renderChoices(opts,item.letter,item.wordObj.word+'의 첫 글자는 '+spokenLetter(item.letter));
   speak(item.wordObj.word+'. 첫 글자를 찾아보세요.');
 }
 function renderChoices(options,answer,successSpeech){
@@ -524,13 +659,14 @@ function renderChoices(options,answer,successSpeech){
         b.classList.add('wrong');
         [...wrap.children].forEach(x=>{ if(x.textContent===answer) x.classList.add('correct'); });
         document.getElementById('feedback').textContent='괜찮아요. 정답을 같이 볼까요?';
-        speak('정답은 '+answer+'예요. 한 번 더 기억해요.');
+        speak('정답은 '+spokenLetter(answer)+'이에요. 한 번 더 기억해요.');
       }
       document.getElementById('nextBtn').disabled=false;
     };
     wrap.appendChild(b);
   });
 }
+function spokenLetter(letter){ return letterSpeech[letter] || letter; }
 function speak(text){
   if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
@@ -542,52 +678,86 @@ function speak(text){
 }
 function speakCurrent(){
   const item=state.items[state.index];
-  if(item.type==='combine') speak(item.letter+'과 아를 합쳐 보세요.');
-  else speak(item.wordObj.word+'. '+item.letter+'로 시작해요.');
+  if(item.type==='combine') speak(spokenLetter(item.letter)+'과 아를 합쳐 보세요.');
+  else speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');
 }
 function nextStep(){ state.index++; render(); }
+function recordCurrentSession(profile){
+  const now=new Date().toISOString();
+  if(state.mode==='weekreview'){
+    const previous=profile.weeklyReview || {completed:false,bestStars:0,completedAt:null};
+    const previousBest=safeCount(previous.bestStars);
+    const awarded=previous.completed ? 0 : state.stars;
+    profile.stars+=awarded;
+    profile.weeklyReview={
+      completed:true,
+      bestStars:Math.max(previousBest,state.stars),
+      completedAt:previous.completedAt || now
+    };
+    return {awarded,firstCompletion:!previous.completed};
+  }
+
+  const key='lesson-'+state.lessonIndex;
+  const previous=profile.records[key] || {completed:false,bestStars:0,completedAt:null};
+  const previousBest=safeCount(previous.bestStars);
+  const awarded=previous.completed ? 0 : state.stars;
+  profile.stars+=awarded;
+  profile.records[key]={
+    completed:true,
+    bestStars:Math.max(previousBest,state.stars),
+    completedAt:previous.completedAt || now
+  };
+  if(!previous.completed){
+    profile.completedLessons=Math.max(profile.completedLessons,state.lessonIndex+1);
+  }
+  return {awarded,firstCompletion:!previous.completed};
+}
 function finish(){
   document.getElementById('progressBar').style.width='100%';
   const data=store();
-  data[state.child].stars=(data[state.child].stars||0)+state.stars;
-  const wk=isoWeekKey();
-  data.done[wk]=data.done[wk]||{};
-  if(state.mode==='weekend'){
-    data.done[wk].weekend=true;
-  }else{
-    const di=dayIndex();
-    data.done[wk]['day'+di]=true;
-  }
+  const profile=data.children[state.child];
+  const result=recordCurrentSession(profile);
   save(data);
-  const who=state.child==='older'?'첫째':'둘째';
-  document.getElementById('doneTitle').textContent=state.mode==='weekend'?'이번 주 복습 완료!':'오늘 학습 완료!';
+  const who=state.child==='older'?'태윤이':'재윤이';
+  const isReview=state.mode==='weekreview';
+  document.getElementById('doneTitle').textContent=isReview?'주간복습 완료!':'오늘 학습 완료!';
+  const rewardText=result.awarded>0
+    ? '누적 별에 <b>⭐ '+result.awarded+'개</b>가 반영되었어요.'
+    : '반복 학습이라 누적 별은 중복해서 늘어나지 않아요.';
   document.getElementById('doneText').innerHTML=
     who+'가 오늘 <b>⭐ '+state.stars+'개</b>를 모았어요.<br>'+
-    (state.mode==='weekend'
-      ? '주중에 배운 ㄱ·ㄴ·ㄷ·ㄹ·ㅁ을 한 번씩 다시 확인했습니다.'
-      : '짧게 끝내고 내일 다시 만나는 것이 핵심이에요.');
+    rewardText+'<br>'+
+    (isReview
+      ? '앞의 5회 학습에서 배운 ㄱ·ㄴ·ㄷ·ㄹ·ㅁ을 한 번씩 다시 확인했습니다.'
+      : '짧게 끝내고 다음 학습에서 다시 만나는 것이 핵심이에요.');
   show('done');
-  updateWeekStrip();
+  updateProgressDisplay();
   speak('오늘 한글 놀이 끝! 정말 잘했어요!');
 }
 function repeatToday(){
-  const di=dayIndex();
-  if(di==='weekend') startWeekendReview(); else startWeekday(di);
+  if(state.mode==='weekreview') startWeeklyReview();
+  else startLesson(state.lessonIndex);
 }
-function goHome(){ show('home'); updateWeekStrip(); }
+function goHome(){ show('home'); updateProgressDisplay(); }
+function reviewStatus(profile){
+  if(profile.weeklyReview.completed) return '주간복습 완료';
+  return profile.completedLessons>=weekLetters.length ? '주간복습 가능' : '복습 잠김';
+}
 function openParent(){
-  const data=store(), wk=isoWeekKey();
-  document.getElementById('pOlderStars').textContent=(data.older.stars||0)+'개';
-  document.getElementById('pYoungerStars').textContent=(data.younger.stars||0)+'개';
-  const done=data.done[wk]||{};
-  let count=Object.keys(done).filter(k=>done[k]).length;
-  document.getElementById('pWeekDone').textContent=count+'회';
+  const data=store();
+  const older=data.children.older, younger=data.children.younger;
+  document.getElementById('pOlderStars').textContent=older.stars+'개';
+  document.getElementById('pOlderProgress').textContent=older.completedLessons+' / '+weekLetters.length;
+  document.getElementById('pOlderReview').textContent=reviewStatus(older);
+  document.getElementById('pYoungerStars').textContent=younger.stars+'개';
+  document.getElementById('pYoungerProgress').textContent=younger.completedLessons+' / '+weekLetters.length;
+  document.getElementById('pYoungerReview').textContent=reviewStatus(younger);
   document.getElementById('parentModal').classList.add('show');
 }
 function closeParent(e){
   if(e.target.id==='parentModal') e.currentTarget.classList.remove('show');
 }
-updateWeekStrip();
+updateProgressDisplay();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
