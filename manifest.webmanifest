@@ -1,0 +1,9 @@
+{
+  "name": "우리 아이 한글 놀이터",
+  "short_name": "한글 놀이터",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FFF8EE",
+  "theme_color": "#FFF8EE",
+  "lang": "ko-KR"
+}

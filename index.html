@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#FFF8EE" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="한글 놀이터" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>우리 아이 한글 놀이터 v0.2</title>
+<style>
+  :root{
+    --bg:#FFF8EE;
+    --card:#FFFFFF;
+    --ink:#2F2F33;
+    --muted:#74747C;
+    --primary:#FF8A5B;
+    --primary2:#FFD36E;
+    --green:#69C58A;
+    --blue:#6FA8FF;
+    --purple:#9C7BFF;
+    --line:#EAE4DB;
+    --danger:#EF6B6B;
+    --shadow:0 10px 30px rgba(61,43,26,.10);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif;
+    background:linear-gradient(180deg,#FFF8EE 0%,#FFFDF8 100%);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  button{font:inherit}
+  .app{max-width:980px;margin:0 auto;padding:18px}
+  .top{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-bottom:14px
+  }
+  .brand{font-size:clamp(24px,5vw,38px);font-weight:900;letter-spacing:-1px}
+  .sub{font-size:14px;color:var(--muted)}
+  .pill{
+    border:0;border-radius:999px;padding:10px 14px;background:#fff;box-shadow:var(--shadow);
+    font-weight:800;cursor:pointer
+  }
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:26px;
+    box-shadow:var(--shadow);padding:22px
+  }
+  .hero{
+    display:grid;grid-template-columns:1.25fr .75fr;gap:16px;align-items:stretch
+  }
+  .hero h1{font-size:clamp(30px,6vw,52px);margin:0 0 10px;line-height:1.12}
+  .hero p{color:var(--muted);font-size:17px;line-height:1.7;margin:0}
+  .schedule{
+    background:linear-gradient(145deg,#FFF0D7,#FFF7E9);
+    border-radius:24px;padding:18px
+  }
+  .schedule strong{font-size:18px}
+  .week{
+    display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-top:12px
+  }
+  .day{
+    text-align:center;padding:9px 5px;border-radius:14px;background:#fff;border:1px solid #F0E7DA;
+    font-size:12px;font-weight:800
+  }
+  .day.active{outline:3px solid var(--primary);background:#FFF4EE}
+  .day.done{background:#EAF8EF;border-color:#CBECD6}
+  .day.rest{opacity:.55}
+  .screen{display:none}
+  .screen.active{display:block}
+  .child-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px
+  }
+  .child{
+    min-height:250px;border:0;border-radius:28px;padding:24px;cursor:pointer;text-align:left;
+    box-shadow:var(--shadow);transition:.18s transform ease
+  }
+  .child:active{transform:scale(.985)}
+  .older{background:linear-gradient(145deg,#EEF5FF,#DDEBFF)}
+  .younger{background:linear-gradient(145deg,#F4F0FF,#E8DEFF)}
+  .avatar{font-size:72px;margin-bottom:10px}
+  .child h2{font-size:28px;margin:0 0 6px}
+  .child p{margin:0;color:#555b67;line-height:1.55}
+  .home-note{margin-top:16px;font-size:14px;color:var(--muted)}
+  .lesson-head{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px
+  }
+  .lesson-title{font-size:26px;font-weight:900}
+  .progress-wrap{margin:14px 0 18px}
+  .progress-info{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:7px}
+  .bar{height:14px;background:#F0ECE6;border-radius:999px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--primary2));transition:.3s}
+  .phase{
+    display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;
+    font-size:14px;font-weight:900;background:#FFF0E9;color:#B94D24
+  }
+  .learning{
+    text-align:center;padding:8px 0
+  }
+  .big-emoji{font-size:clamp(88px,18vw,150px);line-height:1.1}
+  .big-letter{font-size:clamp(94px,22vw,180px);font-weight:1000;line-height:1;margin:8px 0}
+  .word{font-size:clamp(34px,8vw,60px);font-weight:1000;letter-spacing:-2px}
+  .hint{font-size:17px;color:var(--muted);margin-top:8px}
+  .sound{
+    margin-top:16px;border:0;border-radius:18px;padding:14px 18px;background:#EEF5FF;font-weight:900;
+    cursor:pointer;font-size:18px
+  }
+  .choices{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 6px
+  }
+  .choice{
+    min-height:82px;border:2px solid var(--line);border-radius:20px;background:#fff;
+    font-size:34px;font-weight:1000;cursor:pointer
+  }
+  .choice.correct{background:#EAF8EF;border-color:var(--green)}
+  .choice.wrong{background:#FFF0F0;border-color:var(--danger)}
+  .feedback{
+    min-height:34px;font-size:20px;font-weight:900;margin:10px 0
+  }
+  .controls{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .btn{
+    border:0;border-radius:18px;padding:14px 20px;font-weight:900;cursor:pointer;min-width:130px
+  }
+  .primary{background:var(--primary);color:white}
+  .secondary{background:#F3F0EB;color:var(--ink)}
+  .green{background:var(--green);color:white}
+  .starbox{
+    display:flex;align-items:center;gap:8px;font-weight:900;background:#FFF7DA;
+    border-radius:999px;padding:9px 13px
+  }
+  .result{
+    text-align:center;padding:20px 8px
+  }
+  .result .trophy{font-size:90px}
+  .result h2{font-size:34px;margin:5px 0}
+  .result p{color:var(--muted);font-size:17px;line-height:1.7}
+  .parent{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px
+  }
+  .stat{
+    background:#FAF8F5;border-radius:18px;padding:16px
+  }
+  .stat b{font-size:25px;display:block;margin-top:5px}
+  .tiny{font-size:12px;color:var(--muted)}
+  .footer-note{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.6}
+  .modal{
+    position:fixed;inset:0;background:rgba(20,20,24,.35);display:none;align-items:center;justify-content:center;padding:18px
+  }
+  .modal.show{display:flex}
+  .modalbox{max-width:520px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow)}
+  .modalbox h3{margin-top:0}
+  .plan-list{display:grid;gap:10px}
+  .plan-row{display:flex;justify-content:space-between;gap:12px;background:#FAF8F5;border-radius:16px;padding:12px 14px}
+  @media(max-width:720px){
+    .hero{grid-template-columns:1fr}
+    .child-grid{grid-template-columns:1fr}
+    .parent{grid-template-columns:1fr}
+    .choices{gap:8px}
+    .choice{min-height:72px}
+    .week{gap:4px}
+    .day{font-size:11px;padding:8px 2px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <div class="brand">🌱 우리 아이 한글 놀이터</div>
+      <div class="sub">하루 10분 · 평일 학습 · 주말 주간복습</div>
+    </div>
+    <button class="pill" onclick="openParent()">부모 보기</button>
+  </div>
+
+  <section id="home" class="screen active">
+    <div class="hero">
+      <div class="card">
+        <h1 id="welcomeTitle">오늘도 한글이랑 놀아볼까요?</h1>
+        <p id="welcomeText">아이를 선택하면 오늘의 학습이 시작됩니다. 2일차부터는 앞의 약 3분을 전날 복습에 사용하고, 이후 새 글자를 배웁니다.</p>
+        <div class="child-grid">
+          <button class="child older" onclick="chooseChild('older')">
+            <div class="avatar">👦🏻</div>
+            <h2>첫째 시작</h2>
+            <p>2021년 3월생<br>글자 → 낱말 → 간단한 조합</p>
+          </button>
+          <button class="child younger" onclick="chooseChild('younger')">
+            <div class="avatar">🧒🏻</div>
+            <h2>둘째 시작</h2>
+            <p>2023년 2월생<br>그림 → 소리 → 첫 글자 찾기</p>
+          </button>
+        </div>
+        <div class="home-note">※ 가장 안정적인 사용 방법: 파일을 내려받아 Chrome 또는 Edge에서 직접 열어주세요. 학습 기록은 해당 브라우저에 저장됩니다.</div>
+      </div>
+
+      <div class="schedule">
+        <strong>📅 이번 주 학습</strong>
+        <div class="tiny" style="margin-top:5px">월~금 학습, 토·일 중 하루는 주중 복습</div>
+        <div class="week" id="weekStrip"></div>
+        <div style="margin-top:16px">
+          <div class="plan-row"><span>월요일</span><b>ㄱ</b></div>
+          <div class="plan-row"><span>화요일</span><b>복습 + ㄴ</b></div>
+          <div class="plan-row"><span>수요일</span><b>복습 + ㄷ</b></div>
+          <div class="plan-row"><span>목요일</span><b>복습 + ㄹ</b></div>
+          <div class="plan-row"><span>금요일</span><b>복습 + ㅁ</b></div>
+          <div class="plan-row"><span>주말 하루</span><b>ㄱ·ㄴ·ㄷ·ㄹ·ㅁ 주간복습</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="lesson" class="screen">
+    <div class="card">
+      <div class="lesson-head">
+        <div>
+          <div class="phase" id="phaseBadge">오늘의 한글</div>
+          <div class="lesson-title" id="lessonTitle"></div>
+        </div>
+        <div class="starbox">⭐ <span id="stars">0</span></div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-info">
+          <span id="progressText">1 / 6</span>
+          <span id="timeText">약 10분 학습</span>
+        </div>
+        <div class="bar"><i id="progressBar"></i></div>
+      </div>
+
+      <div class="learning">
+        <div id="bigEmoji" class="big-emoji">🐶</div>
+        <div id="bigLetter" class="big-letter">ㄱ</div>
+        <div id="word" class="word">강아지</div>
+        <div id="hint" class="hint">강아지의 첫 글자를 찾아보세요.</div>
+        <button class="sound" onclick="speakCurrent()">🔊 다시 듣기</button>
+        <div id="choices" class="choices"></div>
+        <div id="feedback" class="feedback"></div>
+        <div class="controls">
+          <button class="btn secondary" onclick="goHome()">그만하기</button>
+          <button id="nextBtn" class="btn primary" onclick="nextStep()" disabled>다음 ▶</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="done" class="screen">
+    <div class="card result">
+      <div class="trophy">🏆</div>
+      <h2 id="doneTitle">오늘 학습 완료!</h2>
+      <p id="doneText"></p>
+      <div class="controls">
+        <button class="btn secondary" onclick="goHome()">홈으로</button>
+        <button class="btn green" onclick="repeatToday()">한 번 더</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="parentModal" class="modal" onclick="closeParent(event)">
+  <div class="modalbox">
+    <h3>👨‍👩‍👦 부모용 학습 현황</h3>
+    <div class="parent">
+      <div class="stat"><span>첫째 별</span><b id="pOlderStars">0</b></div>
+      <div class="stat"><span>둘째 별</span><b id="pYoungerStars">0</b></div>
+      <div class="stat"><span>이번 주 완료</span><b id="pWeekDone">0회</b></div>
+    </div>
+    <div class="footer-note">
+      권장 운영: 월요일은 새 학습 10분, 화~금은 전날 복습 약 3분 + 새 학습 약 7분, 주말은 토·일 중 하루만 주중 전체 복습을 진행합니다.
+    </div>
+    <div class="controls"><button class="btn primary" onclick="document.getElementById('parentModal').classList.remove('show')">닫기</button></div>
+  </div>
+</div>
+
+<script>
+const weekLetters = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ'];
+
+const words = {
+  'ㄱ': [
+    {emoji:'🐶', word:'강아지', initial:'ㄱ'},
+    {emoji:'🎒', word:'가방', initial:'ㄱ'},
+    {emoji:'🚂', word:'기차', initial:'ㄱ'},
+    {emoji:'⚽', word:'공', initial:'ㄱ'}
+  ],
+  'ㄴ': [
+    {emoji:'🦋', word:'나비', initial:'ㄴ'},
+    {emoji:'🌳', word:'나무', initial:'ㄴ'},
+    {emoji:'👁️', word:'눈', initial:'ㄴ'},
+    {emoji:'🎵', word:'노래', initial:'ㄴ'}
+  ],
+  'ㄷ': [
+    {emoji:'🌙', word:'달', initial:'ㄷ'},
+    {emoji:'🦵', word:'다리', initial:'ㄷ'},
+    {emoji:'🍩', word:'도넛', initial:'ㄷ'},
+    {emoji:'🐷', word:'돼지', initial:'ㄷ'}
+  ],
+  'ㄹ': [
+    {emoji:'🤖', word:'로봇', initial:'ㄹ'},
+    {emoji:'🍜', word:'라면', initial:'ㄹ'},
+    {emoji:'📻', word:'라디오', initial:'ㄹ'},
+    {emoji:'🎀', word:'리본', initial:'ㄹ'}
+  ],
+  'ㅁ': [
+    {emoji:'🚪', word:'문', initial:'ㅁ'},
+    {emoji:'💧', word:'물', initial:'ㅁ'},
+    {emoji:'🍈', word:'멜론', initial:'ㅁ'},
+    {emoji:'👒', word:'모자', initial:'ㅁ'}
+  ],
+  'ㅂ': [
+    {emoji:'🍌', word:'바나나', initial:'ㅂ'},
+    {emoji:'🌧️', word:'비', initial:'ㅂ'},
+    {emoji:'🧼', word:'비누', initial:'ㅂ'},
+    {emoji:'🍚', word:'밥', initial:'ㅂ'}
+  ]
+};
+
+const distractors = {
+  'ㄱ':['ㄴ','ㄷ','ㄹ'], 'ㄴ':['ㄱ','ㄷ','ㅁ'], 'ㄷ':['ㄴ','ㄹ','ㅁ'],
+  'ㄹ':['ㄱ','ㄷ','ㅁ'], 'ㅁ':['ㄴ','ㄹ','ㅂ'], 'ㅂ':['ㄴ','ㄷ','ㅁ']
+};
+
+let state = {
+  child:null,
+  items:[],
+  index:0,
+  stars:0,
+  answered:false,
+  mode:'weekday',
+  phase:'new',
+  currentLetter:'ㄱ'
+};
+
+let memoryFallback = {"older":{"stars":0},"younger":{"stars":0},"done":{}};
+
+function store(){
+  try{
+    const raw = localStorage.getItem('hangulPlaygroundV02');
+    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(memoryFallback));
+  }catch(e){
+    return JSON.parse(JSON.stringify(memoryFallback));
+  }
+}
+function save(data){
+  memoryFallback = JSON.parse(JSON.stringify(data));
+  try{
+    localStorage.setItem('hangulPlaygroundV02', JSON.stringify(data));
+  }catch(e){
+    // 미리보기/보안 제한 환경에서는 현재 실행 중 메모리에만 저장
+  }
+}
+
+function isoWeekKey(date=new Date()){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNo = Math.ceil((((d-yearStart)/86400000)+1)/7);
+  return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2,'0');
+}
+function dateKey(date=new Date()){
+  return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function dayIndex(){
+  const d = new Date().getDay(); // 0 Sun ... 6 Sat
+  if(d===0 || d===6) return 'weekend';
+  return d-1; // Mon=0
+}
+function updateWeekStrip(){
+  const labels=['월','화','수','목','금','토','일'];
+  const dnow=new Date().getDay();
+  const current = dnow===0?6:dnow-1;
+  const data=store(), wk=isoWeekKey();
+  const done=data.done[wk] || {};
+  const el=document.getElementById('weekStrip');
+  el.innerHTML='';
+  labels.forEach((x,i)=>{
+    const div=document.createElement('div');
+    div.className='day';
+    if(i===current) div.classList.add('active');
+    if((i<5 && done['day'+i]) || (i>=5 && done.weekend)) div.classList.add('done');
+    if(i===6 && done.weekend) div.classList.add('rest');
+    div.textContent=x;
+    el.appendChild(div);
+  });
+}
+function chooseChild(child){
+  state.child=child;
+  const di=dayIndex();
+  if(di==='weekend'){
+    startWeekendReview();
+  } else {
+    startWeekday(di);
+  }
+}
+function shuffled(a){ return [...a].sort(()=>Math.random()-.5); }
+
+function makeLearnItem(letter, wordObj, phase){
+  return {type:'learn', letter, wordObj, phase};
+}
+function makeQuizItem(letter, wordObj, phase){
+  return {type:'quiz', letter, wordObj, phase};
+}
+
+function startWeekday(di){
+  state.mode='weekday';
+  state.currentLetter=weekLetters[di];
+  state.items=[];
+  if(di>0){
+    const prev=weekLetters[di-1];
+    const prevWords=shuffled(words[prev]).slice(0,2);
+    prevWords.forEach(w=>state.items.push(makeQuizItem(prev,w,'review')));
+  }
+  const newWords=shuffled(words[state.currentLetter]).slice(0,3);
+  newWords.forEach((w,i)=>{
+    state.items.push(i===0 ? makeLearnItem(state.currentLetter,w,'new') : makeQuizItem(state.currentLetter,w,'new'));
+  });
+  if(state.child==='older'){
+    state.items.push({type:'combine',letter:state.currentLetter,phase:'new'});
+  } else {
+    state.items.push(makeLearnItem(state.currentLetter,shuffled(words[state.currentLetter])[0],'new'));
+  }
+  begin();
+}
+function startWeekendReview(){
+  state.mode='weekend';
+  state.items=[];
+  weekLetters.forEach(letter=>{
+    const w=shuffled(words[letter])[0];
+    state.items.push(makeQuizItem(letter,w,'weekreview'));
+  });
+  begin();
+}
+function begin(){
+  state.index=0;
+  state.stars=0;
+  state.answered=false;
+  show('lesson');
+  render();
+}
+function render(){
+  if(state.index>=state.items.length){ finish(); return; }
+  const item=state.items[state.index];
+  state.answered=false;
+  document.getElementById('nextBtn').disabled=true;
+  document.getElementById('feedback').textContent='';
+  document.getElementById('choices').innerHTML='';
+  document.getElementById('progressText').textContent=(state.index+1)+' / '+state.items.length;
+  document.getElementById('progressBar').style.width=((state.index/state.items.length)*100)+'%';
+  document.getElementById('stars').textContent=state.stars;
+
+  const isReview=item.phase==='review' || item.phase==='weekreview';
+  document.getElementById('phaseBadge').textContent =
+    item.phase==='review' ? '🔁 전날 복습 · 약 3분' :
+    item.phase==='weekreview' ? '🧩 주중 전체 복습 · 약 10분' :
+    '🌱 새 학습 · 약 7분';
+  document.getElementById('timeText').textContent =
+    state.mode==='weekend' ? '주말 복습' : (dayIndex()===0 ? '새 학습 중심' : '복습 3분 + 새 학습 7분');
+
+  if(item.type==='learn'){
+    document.getElementById('lessonTitle').textContent=(state.child==='older'?'첫째':'둘째')+' · '+item.letter+' 배우기';
+    document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
+    document.getElementById('bigLetter').textContent=item.letter;
+    document.getElementById('word').textContent=item.wordObj.word;
+    document.getElementById('hint').textContent =
+      state.child==='older'
+      ? item.wordObj.word+'의 첫 글자는 "'+item.letter+'"이에요.'
+      : '그림을 보고 소리와 글자를 같이 익혀요.';
+    const btn=document.createElement('button');
+    btn.className='choice correct';
+    btn.textContent='알겠어요 👍';
+    btn.onclick=()=>{state.answered=true; document.getElementById('nextBtn').disabled=false; speak(item.wordObj.word+'. '+item.letter+'로 시작해요.');};
+    document.getElementById('choices').appendChild(btn);
+    speak(item.letter+'. '+item.wordObj.word);
+    return;
+  }
+
+  if(item.type==='combine'){
+    const vowelMap={'ㄱ':'가','ㄴ':'나','ㄷ':'다','ㄹ':'라','ㅁ':'마','ㅂ':'바'};
+    document.getElementById('lessonTitle').textContent='첫째 · 글자 만들기';
+    document.getElementById('bigEmoji').textContent='🧩';
+    document.getElementById('bigLetter').textContent=item.letter+' + ㅏ';
+    document.getElementById('word').textContent='무슨 글자가 될까요?';
+    document.getElementById('hint').textContent='자음과 모음을 합쳐 보세요.';
+    const answer=vowelMap[item.letter];
+    const options=shuffled([answer,'사','자'].filter((v,i,a)=>a.indexOf(v)===i)).slice(0,3);
+    renderChoices(options, answer, item.letter+'과 아가 만나서 '+answer);
+    return;
+  }
+
+  document.getElementById('lessonTitle').textContent=
+    (state.child==='older'?'첫째':'둘째') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
+  document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
+  document.getElementById('bigLetter').textContent='?';
+  document.getElementById('word').textContent=item.wordObj.word;
+  document.getElementById('hint').textContent =
+    state.child==='older'
+    ? '"'+item.wordObj.word+'"의 첫 글자를 골라보세요.'
+    : '그림 이름을 듣고 첫 글자를 찾아보세요.';
+  const opts=shuffled([item.letter, ...distractors[item.letter].slice(0,2)]);
+  renderChoices(opts,item.letter,item.wordObj.word+'의 첫 글자는 '+item.letter);
+  speak(item.wordObj.word+'. 첫 글자를 찾아보세요.');
+}
+function renderChoices(options,answer,successSpeech){
+  const wrap=document.getElementById('choices');
+  options.forEach(opt=>{
+    const b=document.createElement('button');
+    b.className='choice';
+    b.textContent=opt;
+    b.onclick=()=>{
+      if(state.answered) return;
+      state.answered=true;
+      [...wrap.children].forEach(x=>x.disabled=true);
+      if(opt===answer){
+        b.classList.add('correct');
+        state.stars++;
+        document.getElementById('stars').textContent=state.stars;
+        document.getElementById('feedback').textContent='🎉 정답! 정말 잘했어요!';
+        speak('정답! '+successSpeech);
+      }else{
+        b.classList.add('wrong');
+        [...wrap.children].forEach(x=>{ if(x.textContent===answer) x.classList.add('correct'); });
+        document.getElementById('feedback').textContent='괜찮아요. 정답을 같이 볼까요?';
+        speak('정답은 '+answer+'예요. 한 번 더 기억해요.');
+      }
+      document.getElementById('nextBtn').disabled=false;
+    };
+    wrap.appendChild(b);
+  });
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='ko-KR';
+  u.rate=0.85;
+  u.pitch=1.05;
+  speechSynthesis.speak(u);
+}
+function speakCurrent(){
+  const item=state.items[state.index];
+  if(item.type==='combine') speak(item.letter+'과 아를 합쳐 보세요.');
+  else speak(item.wordObj.word+'. '+item.letter+'로 시작해요.');
+}
+function nextStep(){ state.index++; render(); }
+function finish(){
+  document.getElementById('progressBar').style.width='100%';
+  const data=store();
+  data[state.child].stars=(data[state.child].stars||0)+state.stars;
+  const wk=isoWeekKey();
+  data.done[wk]=data.done[wk]||{};
+  if(state.mode==='weekend'){
+    data.done[wk].weekend=true;
+  }else{
+    const di=dayIndex();
+    data.done[wk]['day'+di]=true;
+  }
+  save(data);
+  const who=state.child==='older'?'첫째':'둘째';
+  document.getElementById('doneTitle').textContent=state.mode==='weekend'?'이번 주 복습 완료!':'오늘 학습 완료!';
+  document.getElementById('doneText').innerHTML=
+    who+'가 오늘 <b>⭐ '+state.stars+'개</b>를 모았어요.<br>'+
+    (state.mode==='weekend'
+      ? '주중에 배운 ㄱ·ㄴ·ㄷ·ㄹ·ㅁ을 한 번씩 다시 확인했습니다.'
+      : '짧게 끝내고 내일 다시 만나는 것이 핵심이에요.');
+  show('done');
+  updateWeekStrip();
+  speak('오늘 한글 놀이 끝! 정말 잘했어요!');
+}
+function repeatToday(){
+  const di=dayIndex();
+  if(di==='weekend') startWeekendReview(); else startWeekday(di);
+}
+function goHome(){ show('home'); updateWeekStrip(); }
+function openParent(){
+  const data=store(), wk=isoWeekKey();
+  document.getElementById('pOlderStars').textContent=(data.older.stars||0)+'개';
+  document.getElementById('pYoungerStars').textContent=(data.younger.stars||0)+'개';
+  const done=data.done[wk]||{};
+  let count=Object.keys(done).filter(k=>done[k]).length;
+  document.getElementById('pWeekDone').textContent=count+'회';
+  document.getElementById('parentModal').classList.add('show');
+}
+function closeParent(e){
+  if(e.target.id==='parentModal') e.currentTarget.classList.remove('show');
+}
+updateWeekStrip();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
