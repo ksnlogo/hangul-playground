@@ -1,8 +1,10 @@
 const CACHE_PREFIX = 'hangul-playground-';
-const CACHE = 'hangul-playground-v04';
+const CACHE = 'hangul-playground-v05a';
 const ASSETS = [
   './',
   './index.html',
+  './curriculum.js',
+  './app.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
