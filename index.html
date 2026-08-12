@@ -202,12 +202,12 @@
         <div class="child-grid">
           <button class="child older" onclick="chooseChild('older')">
             <div class="avatar">👦🏻</div>
-            <h2>첫째 시작</h2>
+            <h2>태윤 시작</h2>
             <p>2021년 3월생<br>글자 → 낱말 → 간단한 조합</p>
           </button>
           <button class="child younger" onclick="chooseChild('younger')">
             <div class="avatar">🧒🏻</div>
-            <h2>둘째 시작</h2>
+            <h2>재윤 시작</h2>
             <p>2023년 2월생<br>그림 → 소리 → 첫 글자 찾기</p>
           </button>
         </div>
@@ -224,11 +224,11 @@
         <strong>📚 학습 순서</strong>
         <div class="tiny" style="margin-top:5px">요일과 관계없이 아이별 완료 순서로 진행</div>
         <div class="progress-child">
-          <div class="progress-child-head"><span>첫째 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
+          <div class="progress-child-head"><span>태윤 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
           <div class="week" id="olderProgressStrip"></div>
         </div>
         <div class="progress-child">
-          <div class="progress-child-head"><span>둘째 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
+          <div class="progress-child-head"><span>재윤 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
           <div class="week" id="youngerProgressStrip"></div>
         </div>
         <div style="margin-top:16px">
@@ -294,10 +294,10 @@
   <div class="modalbox" role="dialog" aria-modal="true" aria-labelledby="parentTitle">
     <h3 id="parentTitle">👨‍👩‍👦 부모용 학습 현황</h3>
     <div class="parent">
-      <div class="stat"><span>첫째 별</span><b id="pOlderStars">0</b></div>
-      <div class="stat"><span>첫째 진도</span><b id="pOlderProgress">0 / 5</b><small id="pOlderReview">복습 잠김</small></div>
-      <div class="stat"><span>둘째 별</span><b id="pYoungerStars">0</b></div>
-      <div class="stat"><span>둘째 진도</span><b id="pYoungerProgress">0 / 5</b><small id="pYoungerReview">복습 잠김</small></div>
+      <div class="stat"><span>태윤 별</span><b id="pOlderStars">0</b></div>
+      <div class="stat"><span>태윤 진도</span><b id="pOlderProgress">0 / 5</b><small id="pOlderReview">복습 잠김</small></div>
+      <div class="stat"><span>재윤 별</span><b id="pYoungerStars">0</b></div>
+      <div class="stat"><span>재윤 진도</span><b id="pYoungerProgress">0 / 5</b><small id="pYoungerReview">복습 잠김</small></div>
     </div>
     <div class="footer-note">
       권장 운영: 첫 학습은 ㄱ부터 시작하고, 2회차부터 이전 학습 복습 약 3분 + 새 학습 약 7분으로 진행합니다. 5회 학습을 마치면 주간복습이 열립니다.
@@ -501,7 +501,7 @@ function updateReviewAction(){
   if(!state.child){ action.hidden=true; return; }
   const profile=store().children[state.child];
   if(profile.completedLessons<weekLetters.length){ action.hidden=true; return; }
-  const who=state.child==='older'?'첫째':'둘째';
+  const who=state.child==='older'?'태윤':'재윤';
   action.hidden=false;
   document.getElementById('reviewActionTitle').textContent=profile.weeklyReview.completed
     ? who+' · 이번 주 학습 완료'
@@ -596,7 +596,7 @@ function render(){
     state.mode==='weekreview' ? '주간 복습' : (state.lessonIndex===0 ? '새 학습 중심' : '복습 3분 + 새 학습 7분');
 
   if(item.type==='learn'){
-    document.getElementById('lessonTitle').textContent=(state.child==='older'?'첫째':'둘째')+' · '+item.letter+' 배우기';
+    document.getElementById('lessonTitle').textContent=(state.child==='older'?'태윤':'재윤')+' · '+item.letter+' 배우기';
     document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
     document.getElementById('bigLetter').textContent=item.letter;
     document.getElementById('word').textContent=item.wordObj.word;
@@ -615,7 +615,7 @@ function render(){
 
   if(item.type==='combine'){
     const vowelMap={'ㄱ':'가','ㄴ':'나','ㄷ':'다','ㄹ':'라','ㅁ':'마','ㅂ':'바'};
-    document.getElementById('lessonTitle').textContent='첫째 · 글자 만들기';
+    document.getElementById('lessonTitle').textContent='태윤 · 글자 만들기';
     document.getElementById('bigEmoji').textContent='🧩';
     document.getElementById('bigLetter').textContent=item.letter+' + ㅏ';
     document.getElementById('word').textContent='무슨 글자가 될까요?';
@@ -627,7 +627,7 @@ function render(){
   }
 
   document.getElementById('lessonTitle').textContent=
-    (state.child==='older'?'첫째':'둘째') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
+    (state.child==='older'?'태윤':'재윤') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
   document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
   document.getElementById('bigLetter').textContent='?';
   document.getElementById('word').textContent=item.wordObj.word;
@@ -718,7 +718,7 @@ function finish(){
   const profile=data.children[state.child];
   const result=recordCurrentSession(profile);
   save(data);
-  const who=state.child==='older'?'첫째':'둘째';
+  const who=state.child==='older'?'태윤이':'재윤이';
   const isReview=state.mode==='weekreview';
   document.getElementById('doneTitle').textContent=isReview?'주간복습 완료!':'오늘 학습 완료!';
   const rewardText=result.awarded>0
