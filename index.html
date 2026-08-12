@@ -73,7 +73,10 @@
   }
   .day.active{outline:3px solid var(--primary);background:#FFF4EE}
   .day.done{background:#EAF8EF;border-color:#CBECD6}
-  .day.rest{opacity:.55}
+  .day.locked{opacity:.42;background:#F3F0EB;color:var(--muted)}
+  .progress-child{margin-top:12px}
+  .progress-child-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+  .progress-child-head b{color:#8F3A1C}
   .screen{display:none}
   .screen.active{display:block}
   .child-grid{
@@ -90,6 +93,13 @@
   .child h2{font-size:28px;margin:0 0 6px}
   .child p{margin:0;color:#555b67;line-height:1.55}
   .home-note{margin-top:16px;font-size:14px;color:var(--muted)}
+  .review-action{
+    margin-top:16px;padding:16px;border-radius:20px;background:#FFF7DA;border:1px solid #F0D98A;
+    display:flex;align-items:center;justify-content:space-between;gap:12px
+  }
+  .review-action[hidden]{display:none}
+  .review-action strong{display:block;font-size:18px}
+  .review-action span{display:block;margin-top:4px;color:var(--muted);font-size:14px;line-height:1.45}
   .lesson-head{
     display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px
   }
@@ -170,6 +180,7 @@
     .choice{min-height:72px}
     .week{gap:4px}
     .day{font-size:11px;padding:8px 2px}
+    .review-action{align-items:stretch;flex-direction:column}
   }
 </style>
 </head>
@@ -200,12 +211,26 @@
             <p>2023년 2월생<br>그림 → 소리 → 첫 글자 찾기</p>
           </button>
         </div>
+        <div id="reviewAction" class="review-action" hidden>
+          <div>
+            <strong id="reviewActionTitle">주간복습 가능</strong>
+            <span id="reviewActionText">5회 학습을 모두 마쳤어요.</span>
+          </div>
+          <button id="reviewActionButton" class="btn primary" onclick="startSelectedWeeklyReview()">주간복습 시작</button>
+        </div>
       </div>
 
       <div class="schedule">
         <strong>📚 학습 순서</strong>
         <div class="tiny" style="margin-top:5px">요일과 관계없이 아이별 완료 순서로 진행</div>
-        <div class="week" id="weekStrip"></div>
+        <div class="progress-child">
+          <div class="progress-child-head"><span>첫째 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
+          <div class="week" id="olderProgressStrip"></div>
+        </div>
+        <div class="progress-child">
+          <div class="progress-child-head"><span>둘째 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
+          <div class="week" id="youngerProgressStrip"></div>
+        </div>
         <div style="margin-top:16px">
           <div class="plan-row"><span>1회 학습</span><b>ㄱ</b></div>
           <div class="plan-row"><span>2회 학습</span><b>복습 + ㄴ</b></div>
@@ -213,8 +238,6 @@
           <div class="plan-row"><span>4회 학습</span><b>복습 + ㄹ</b></div>
           <div class="plan-row"><span>5회 학습</span><b>복습 + ㅁ</b></div>
           <div class="plan-row"><span>5회 완료 후</span><b>ㄱ·ㄴ·ㄷ·ㄹ·ㅁ 주간복습</b></div>
-          <div class="plan-row"><span>첫째 진도</span><b id="homeOlderProgress">0 / 5</b></div>
-          <div class="plan-row"><span>둘째 진도</span><b id="homeYoungerProgress">0 / 5</b></div>
         </div>
       </div>
     </div>
@@ -444,25 +467,67 @@ function progressText(profile){
     (profile.completedLessons>=weekLetters.length ? ' · 복습 가능' : '');
   return profile.completedLessons+' / '+weekLetters.length+review;
 }
-function updateProgressDisplay(){
+function renderProgressStrip(elementId,profile){
   const labels=['1회','2회','3회','4회','5회','복습'];
-  const data=store();
-  const el=document.getElementById('weekStrip');
+  const el=document.getElementById(elementId);
   el.innerHTML='';
-  labels.forEach(x=>{
+  labels.forEach((label,index)=>{
     const div=document.createElement('div');
     div.className='day';
-    div.textContent=x;
+    div.textContent=label;
+    if(index<weekLetters.length){
+      if(index<profile.completedLessons) div.classList.add('done');
+      else if(index===profile.completedLessons) div.classList.add('active');
+    }else if(profile.weeklyReview.completed){
+      div.classList.add('done');
+    }else if(profile.completedLessons>=weekLetters.length){
+      div.classList.add('active');
+    }else{
+      div.classList.add('locked');
+    }
     el.appendChild(div);
   });
+}
+function updateProgressDisplay(){
+  const data=store();
+  renderProgressStrip('olderProgressStrip',data.children.older);
+  renderProgressStrip('youngerProgressStrip',data.children.younger);
   document.getElementById('homeOlderProgress').textContent=progressText(data.children.older);
   document.getElementById('homeYoungerProgress').textContent=progressText(data.children.younger);
+  updateReviewAction();
+}
+function updateReviewAction(){
+  const action=document.getElementById('reviewAction');
+  if(!state.child){ action.hidden=true; return; }
+  const profile=store().children[state.child];
+  if(profile.completedLessons<weekLetters.length){ action.hidden=true; return; }
+  const who=state.child==='older'?'첫째':'둘째';
+  action.hidden=false;
+  document.getElementById('reviewActionTitle').textContent=profile.weeklyReview.completed
+    ? who+' · 이번 주 학습 완료'
+    : who+' · 주간복습 가능';
+  document.getElementById('reviewActionText').textContent=profile.weeklyReview.completed
+    ? '주간복습까지 모두 마쳤어요. 원하면 다시 연습할 수 있어요.'
+    : '5회 학습을 모두 마쳤어요. 준비되면 복습을 시작하세요.';
+  document.getElementById('reviewActionButton').textContent=profile.weeklyReview.completed
+    ? '다시 연습하기'
+    : '주간복습 시작';
 }
 function chooseChild(child){
   state.child=child;
   const profile=store().children[child];
+  if(profile.completedLessons>=weekLetters.length){
+    state.mode=profile.weeklyReview.completed?'complete':'review-ready';
+    show('home');
+    updateProgressDisplay();
+    return;
+  }
+  startLesson(profile.completedLessons);
+}
+function startSelectedWeeklyReview(){
+  if(!state.child) return;
+  const profile=store().children[state.child];
   if(profile.completedLessons>=weekLetters.length) startWeeklyReview();
-  else startLesson(profile.completedLessons);
 }
 function shuffled(a){ return [...a].sort(()=>Math.random()-.5); }
 
