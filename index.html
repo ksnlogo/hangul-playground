@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="한글 놀이터" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
-<title>우리 아이 한글 놀이터 v0.5-A</title>
+<title>우리 아이 한글 놀이터 v0.5-B</title>
 <style>
   :root{
     --bg:#FFF8EE;
@@ -67,6 +67,20 @@
   .progress-child{margin-top:12px}
   .progress-child-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
   .progress-child-head b{color:#8F3A1C}
+  .course-progress-card{background:rgba(255,255,255,.72);border-radius:20px;padding:14px;margin-top:12px}
+  .course-progress-card:first-of-type{margin-top:14px}
+  .course-week-title{margin-top:5px;color:var(--muted);font-size:13px;font-weight:750}
+  .week-overview{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:12px}
+  .week-dot{
+    display:grid;place-items:center;min-width:0;min-height:34px;border:1px solid #E4DDD3;border-radius:11px;
+    background:#F3F0EB;color:var(--muted);font-size:12px;font-weight:900
+  }
+  button.week-dot{cursor:pointer}
+  button.week-dot:disabled{cursor:default}
+  .week-dot.placed{background:#F1EEE9;color:#9B9389;border-style:dashed}
+  .week-dot.done{background:#EAF8EF;color:#1E6A3B;border-color:#BCE2C9}
+  .week-dot.active{background:#FFF0E9;color:#9B3715;border:3px solid var(--primary)}
+  .week-dot.locked{opacity:.48}
   .screen{display:none}
   .screen.active{display:block}
   .child-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
@@ -111,6 +125,7 @@
     cursor:pointer;font-size:18px
   }
   .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 6px}
+  .choices.two-choice{grid-template-columns:repeat(2,1fr);max-width:640px;margin-left:auto;margin-right:auto}
   .choice{
     min-height:82px;border:2px solid var(--line);border-radius:20px;background:#fff;
     font-size:34px;font-weight:1000;cursor:pointer
@@ -145,7 +160,7 @@
       calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))
   }
   .modal.show{display:flex}
-  .modalbox{max-width:520px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow)}
+  .modalbox{max-width:760px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow);max-height:90dvh;overflow:auto}
   .modalbox h3{margin-top:0}
   .plan-row{display:flex;justify-content:space-between;gap:12px;background:#FAF8F5;border-radius:16px;padding:12px 14px}
   .placement-card{max-width:760px;margin:0 auto}
@@ -213,24 +228,21 @@
       </div>
 
       <div class="schedule">
-        <strong>📚 기존 학습 진행표</strong>
-        <div class="tiny" style="margin-top:5px">v0.5-A에서는 기존 5회 학습 기록을 그대로 유지합니다.</div>
-        <div class="progress-child">
-          <div class="progress-child-head"><span>태윤 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
+        <strong>📚 8주 학습 진행표</strong>
+        <div class="tiny" style="margin-top:5px">요일과 관계없이 완료한 회차부터 이어서 진행해요.</div>
+        <div class="course-progress-card">
+          <div class="progress-child-head"><span>태윤 · 한글 읽기 코스</span><b id="homeOlderProgress">레벨테스트 전</b></div>
+          <div id="homeOlderWeek" class="course-week-title">시작 전</div>
           <div class="week" id="olderProgressStrip"></div>
+          <div class="week-overview" id="olderWeekOverview"></div>
         </div>
-        <div class="progress-child">
-          <div class="progress-child-head"><span>재윤 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
+        <div class="course-progress-card">
+          <div class="progress-child-head"><span>재윤 · 한글 놀이 코스</span><b id="homeYoungerProgress">레벨테스트 전</b></div>
+          <div id="homeYoungerWeek" class="course-week-title">시작 전</div>
           <div class="week" id="youngerProgressStrip"></div>
+          <div class="week-overview" id="youngerWeekOverview"></div>
         </div>
-        <div style="margin-top:16px">
-          <div class="plan-row"><span>1회 학습</span><b>ㄱ</b></div>
-          <div class="plan-row"><span>2회 학습</span><b>복습 + ㄴ</b></div>
-          <div class="plan-row"><span>3회 학습</span><b>복습 + ㄷ</b></div>
-          <div class="plan-row"><span>4회 학습</span><b>복습 + ㄹ</b></div>
-          <div class="plan-row"><span>5회 학습</span><b>복습 + ㅁ</b></div>
-          <div class="plan-row"><span>5회 완료 후</span><b>주간복습</b></div>
-        </div>
+        <div class="tiny" style="margin-top:12px">8주 표시: 배치 건너뜀 · 완료 · 현재 · 잠김</div>
       </div>
     </div>
   </section>
@@ -341,17 +353,21 @@
     <div class="parent">
       <div class="stat"><span>태윤 별</span><b id="pOlderStars">0</b></div>
       <div class="stat">
-        <span>태윤 진도</span><b id="pOlderProgress">0 / 5</b>
+        <span>태윤 · 한글 읽기 코스</span><b id="pOlderProgress">학습 시작 전</b>
         <small id="pOlderReview">복습 잠김</small><small id="pOlderPlacement" class="placement-status">레벨테스트 전</small>
+        <small id="pOlderCompleted">완료 주차 · 없음</small><small id="pOlderPlaced">배치로 건너뜀 · 없음</small>
+        <div id="pOlderWeeks" class="week-overview"></div>
       </div>
       <div class="stat"><span>재윤 별</span><b id="pYoungerStars">0</b></div>
       <div class="stat">
-        <span>재윤 진도</span><b id="pYoungerProgress">0 / 5</b>
+        <span>재윤 · 한글 놀이 코스</span><b id="pYoungerProgress">학습 시작 전</b>
         <small id="pYoungerReview">복습 잠김</small><small id="pYoungerPlacement" class="placement-status">레벨테스트 전</small>
+        <small id="pYoungerCompleted">완료 주차 · 없음</small><small id="pYoungerPlaced">배치로 건너뜀 · 없음</small>
+        <div id="pYoungerWeeks" class="week-overview"></div>
       </div>
     </div>
     <div class="footer-note">
-      v0.5-A에서는 레벨테스트 결과와 8주 과정 데이터를 준비합니다. 실제 8주 학습 화면 연결은 다음 단계에서 진행합니다.
+      현재 진도와 배치 결과는 아이별로 따로 저장됩니다. 기존 v0.4 기록은 보존되지만 새 8주 진도를 움직이지 않습니다.
     </div>
     <div class="controls"><button class="btn primary" onclick="document.getElementById('parentModal').classList.remove('show')">닫기</button></div>
   </div>

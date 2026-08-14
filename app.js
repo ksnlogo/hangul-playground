@@ -4,50 +4,6 @@ const CURRICULUM=window.HANGUL_CURRICULUM;
 const weekLetters=['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ'];
 const letterSpeech=CURRICULUM.letterSpeech;
 
-const words={
-  'ㄱ':[
-    {emoji:'🐶',word:'강아지',initial:'ㄱ'},
-    {emoji:'🎒',word:'가방',initial:'ㄱ'},
-    {emoji:'🚂',word:'기차',initial:'ㄱ'},
-    {emoji:'⚽',word:'공',initial:'ㄱ'}
-  ],
-  'ㄴ':[
-    {emoji:'🦋',word:'나비',initial:'ㄴ'},
-    {emoji:'🌳',word:'나무',initial:'ㄴ'},
-    {emoji:'👁️',word:'눈',initial:'ㄴ'},
-    {emoji:'🎵',word:'노래',initial:'ㄴ'}
-  ],
-  'ㄷ':[
-    {emoji:'🌙',word:'달',initial:'ㄷ'},
-    {emoji:'🦵',word:'다리',initial:'ㄷ'},
-    {emoji:'🍩',word:'도넛',initial:'ㄷ'},
-    {emoji:'🐷',word:'돼지',initial:'ㄷ'}
-  ],
-  'ㄹ':[
-    {emoji:'🤖',word:'로봇',initial:'ㄹ'},
-    {emoji:'🍜',word:'라면',initial:'ㄹ'},
-    {emoji:'📻',word:'라디오',initial:'ㄹ'},
-    {emoji:'🎀',word:'리본',initial:'ㄹ'}
-  ],
-  'ㅁ':[
-    {emoji:'🚪',word:'문',initial:'ㅁ'},
-    {emoji:'💧',word:'물',initial:'ㅁ'},
-    {emoji:'🍈',word:'멜론',initial:'ㅁ'},
-    {emoji:'👒',word:'모자',initial:'ㅁ'}
-  ],
-  'ㅂ':[
-    {emoji:'🍌',word:'바나나',initial:'ㅂ'},
-    {emoji:'🌧️',word:'비',initial:'ㅂ'},
-    {emoji:'🧼',word:'비누',initial:'ㅂ'},
-    {emoji:'🍚',word:'밥',initial:'ㅂ'}
-  ]
-};
-
-const distractors={
-  'ㄱ':['ㄴ','ㄷ','ㄹ'],'ㄴ':['ㄱ','ㄷ','ㅁ'],'ㄷ':['ㄴ','ㄹ','ㅁ'],
-  'ㄹ':['ㄱ','ㄷ','ㅁ'],'ㅁ':['ㄴ','ㄹ','ㅂ'],'ㅂ':['ㄴ','ㄷ','ㅁ']
-};
-
 let state={
   child:null,
   items:[],
@@ -55,8 +11,10 @@ let state={
   stars:0,
   answered:false,
   mode:'lesson',
-  lessonIndex:0,
-  currentLetter:'ㄱ'
+  weekNumber:null,
+  sessionNumber:null,
+  activityId:null,
+  replay:false
 };
 
 let placementUi={waiting:false,finished:false};
@@ -153,6 +111,12 @@ function normalizeRecord(record){
     completedAt:typeof record.completedAt==='string'?record.completedAt:null
   };
 }
+function normalizeLearningRecord(record){
+  const clean=normalizeRecord(record);
+  if(!clean) return null;
+  clean.attempts=Math.max(1,safeCount(record.attempts));
+  return clean;
+}
 function normalizeLegacyProfile(profile){
   const clean=emptyLegacyProfile();
   if(!profile || typeof profile!=='object') return clean;
@@ -247,19 +211,49 @@ function normalizePlacement(placement,child){
   if((clean.status==='completed' || clean.status==='skipped') && !clean.result) clean.status='pending';
   return clean;
 }
-function normalizeProgress(progress){
+function normalizeProgressRecords(records,courseId,kind){
+  const clean={};
+  if(!isPlainObject(records)) return clean;
+  const pattern=kind==='review'
+    ? new RegExp('^'+courseId+':week-[1-8]:review$')
+    : new RegExp('^'+courseId+':week-[1-8]:session-[1-5]$');
+  Object.keys(records).forEach(key=>{
+    if(!pattern.test(key)) return;
+    const record=normalizeLearningRecord(records[key]);
+    if(record) clean[key]=record;
+  });
+  return clean;
+}
+function normalizeProgress(progress,child){
   const clean=emptyProgress();
   if(!progress || typeof progress!=='object') return clean;
   if(progress.startWeek!==null && progress.startWeek!==undefined) clean.startWeek=Math.max(1,safeCount(progress.startWeek,8));
   if(progress.currentWeek!==null && progress.currentWeek!==undefined) clean.currentWeek=Math.max(1,safeCount(progress.currentWeek,8));
   clean.currentSession=Math.max(1,safeCount(progress.currentSession,5));
-  clean.completedSessions=safeObject(progress.completedSessions,{}) || {};
-  clean.weeklyReviews=safeObject(progress.weeklyReviews,{}) || {};
+  const courseId=courseIdFor(child);
+  clean.completedSessions=normalizeProgressRecords(progress.completedSessions,courseId,'session');
+  clean.weeklyReviews=normalizeProgressRecords(progress.weeklyReviews,courseId,'review');
   clean.placedWeeks=Array.isArray(progress.placedWeeks)
-    ? progress.placedWeeks.map(value=>safeCount(value,8)).filter(value=>value>0)
+    ? [...new Set(progress.placedWeeks.map(value=>safeCount(value,8)).filter(value=>value>0))].sort((a,b)=>a-b)
     : [];
+  if(clean.startWeek!==null){
+    clean.placedWeeks=clean.placedWeeks.filter(weekNumber=>weekNumber<clean.startWeek);
+    if(clean.currentWeek===null) clean.currentWeek=clean.startWeek;
+  }
   clean.courseCompleted=Boolean(progress.courseCompleted);
   return clean;
+}
+function initializeProgressFromPlacement(profile,child){
+  const progress=profile.progress;
+  const placement=profile.placement;
+  if(progress.startWeek!==null || !['completed','skipped'].includes(placement.status) || !placement.result) return;
+  const startWeek=child==='older'?placement.result.startWeek:1;
+  progress.startWeek=startWeek;
+  progress.currentWeek=startWeek;
+  progress.currentSession=1;
+  progress.placedWeeks=startWeek>1
+    ? Array.from({length:startWeek-1},(_,index)=>index+1)
+    : [];
 }
 function normalizeProfile(profile,child){
   const clean=emptyProfile(child);
@@ -268,8 +262,9 @@ function normalizeProfile(profile,child){
   clean.legacyStars=safeCount(profile.legacyStars);
   clean.stars=Math.max(safeCount(profile.stars),clean.legacyStars);
   clean.placement=normalizePlacement(profile.placement,child);
-  clean.progress=normalizeProgress(profile.progress);
+  clean.progress=normalizeProgress(profile.progress,child);
   clean.legacyV04=normalizeLegacyProfile(profile.legacyV04);
+  initializeProgressFromPlacement(clean,child);
   return clean;
 }
 function normalizeData(data){
@@ -348,32 +343,90 @@ function show(id){
   document.querySelectorAll('.screen').forEach(element=>element.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function progressText(profile){
-  const legacy=profile.legacyV04;
-  const review=legacy.weeklyReview.completed?' · 복습 완료':
-    (legacy.completedLessons>=weekLetters.length?' · 복습 가능':'');
-  return legacy.completedLessons+' / '+weekLetters.length+review;
+function courseFor(child){return CURRICULUM.courses[child];}
+function weekFor(child,weekNumber){return courseFor(child).weeks[weekNumber-1];}
+function sessionActivityId(child,weekNumber,sessionNumber){
+  const course=courseFor(child);
+  const week=weekFor(child,weekNumber);
+  const session=week.sessions[sessionNumber-1];
+  return course.id+':'+week.id+':'+session.id;
 }
-function renderProgressStrip(elementId,profile){
+function reviewActivityId(child,weekNumber){
+  const course=courseFor(child);
+  const week=weekFor(child,weekNumber);
+  return course.id+':'+week.id+':'+week.weeklyReview.id;
+}
+function completedSessionCount(profile,child,weekNumber){
+  let count=0;
+  for(let sessionNumber=1;sessionNumber<=5;sessionNumber++){
+    const record=profile.progress.completedSessions[sessionActivityId(child,weekNumber,sessionNumber)];
+    if(record && record.completed) count++;
+  }
+  return count;
+}
+function reviewAvailable(profile,child,weekNumber=profile.progress.currentWeek){
+  if(!weekNumber) return false;
+  const review=profile.progress.weeklyReviews[reviewActivityId(child,weekNumber)];
+  return completedSessionCount(profile,child,weekNumber)===5 && !(review && review.completed);
+}
+function courseProgressText(profile,child){
+  if(profile.placement.status==='pending') return '레벨테스트 전';
+  if(profile.placement.status==='in-progress') return '레벨테스트 이어하기';
+  if(profile.progress.courseCompleted) return '8주 과정 완료';
+  const weekNumber=profile.progress.currentWeek || 1;
+  const completed=completedSessionCount(profile,child,weekNumber);
+  return weekNumber+'주차 · '+completed+' / 5회'+(reviewAvailable(profile,child,weekNumber)?' · 복습 가능':'');
+}
+function renderProgressStrip(elementId,profile,child){
   const labels=['1회','2회','3회','4회','5회','복습'];
-  const legacy=profile.legacyV04;
+  const weekNumber=profile.progress.currentWeek;
+  const completed=weekNumber?completedSessionCount(profile,child,weekNumber):0;
+  const review=weekNumber?profile.progress.weeklyReviews[reviewActivityId(child,weekNumber)]:null;
   const element=document.getElementById(elementId);
   element.innerHTML='';
   labels.forEach((label,index)=>{
     const div=document.createElement('div');
     div.className='day';
     div.textContent=label;
-    if(index<weekLetters.length){
-      if(index<legacy.completedLessons) div.classList.add('done');
-      else if(index===legacy.completedLessons) div.classList.add('active');
-    }else if(legacy.weeklyReview.completed){
+    if(!weekNumber){
+      div.classList.add('locked');
+    }else if(index<5){
+      if(index<completed) div.classList.add('done');
+      else if(index===completed && completed<5) div.classList.add('active');
+      else div.classList.add('locked');
+    }else if(review && review.completed){
       div.classList.add('done');
-    }else if(legacy.completedLessons>=weekLetters.length){
+    }else if(completed===5){
       div.classList.add('active');
     }else{
       div.classList.add('locked');
     }
     element.appendChild(div);
+  });
+}
+function weekState(profile,child,weekNumber){
+  if(profile.progress.placedWeeks.includes(weekNumber)) return 'placed';
+  const review=profile.progress.weeklyReviews[reviewActivityId(child,weekNumber)];
+  if(review && review.completed) return 'done';
+  if(profile.progress.currentWeek===weekNumber) return 'active';
+  return 'locked';
+}
+function renderWeekOverview(elementId,profile,child){
+  const element=document.getElementById(elementId);
+  element.innerHTML='';
+  courseFor(child).weeks.forEach(week=>{
+    const status=weekState(profile,child,week.number);
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='week-dot '+status;
+    button.textContent=week.number;
+    const labels={placed:'배치로 건너뜀',done:'완료',active:'현재',locked:'잠김'};
+    button.title=week.number+'주차 · '+labels[status];
+    button.setAttribute('aria-label',button.title);
+    const canPractice=status==='done' || status==='active';
+    button.disabled=!canPractice;
+    if(canPractice) button.onclick=()=>startWeekPractice(child,week.number);
+    element.appendChild(button);
   });
 }
 function placementHomeLabel(profile,child){
@@ -387,31 +440,39 @@ function placementHomeLabel(profile,child){
 }
 function updateProgressDisplay(){
   const data=store();
-  renderProgressStrip('olderProgressStrip',data.children.older);
-  renderProgressStrip('youngerProgressStrip',data.children.younger);
-  document.getElementById('homeOlderProgress').textContent=progressText(data.children.older);
-  document.getElementById('homeYoungerProgress').textContent=progressText(data.children.younger);
-  document.getElementById('olderPlacementBadge').textContent=placementHomeLabel(data.children.older,'older');
-  document.getElementById('youngerPlacementBadge').textContent=placementHomeLabel(data.children.younger,'younger');
+  ['older','younger'].forEach(child=>{
+    const profile=data.children[child];
+    const prefix=child==='older'?'Older':'Younger';
+    const week=profile.progress.currentWeek?weekFor(child,profile.progress.currentWeek):null;
+    document.getElementById('home'+prefix+'Progress').textContent=courseProgressText(profile,child);
+    document.getElementById('home'+prefix+'Week').textContent=week
+      ? profile.progress.currentWeek+'주차 · '+week.title
+      : '시작 전';
+    renderProgressStrip(child+'ProgressStrip',profile,child);
+    renderWeekOverview(child+'WeekOverview',profile,child);
+  });
+  document.getElementById('olderPlacementBadge').textContent=courseProgressText(data.children.older,'older');
+  document.getElementById('youngerPlacementBadge').textContent=courseProgressText(data.children.younger,'younger');
   updateReviewAction();
 }
 function updateReviewAction(){
   const action=document.getElementById('reviewAction');
   if(!state.child){action.hidden=true;return;}
   const profile=store().children[state.child];
-  const legacy=profile.legacyV04;
-  if(legacy.completedLessons<weekLetters.length){action.hidden=true;return;}
   const who=childName(state.child);
+  if(profile.progress.courseCompleted){
+    action.hidden=false;
+    document.getElementById('reviewActionTitle').textContent=who+' · 8주 한글 과정 완료!';
+    document.getElementById('reviewActionText').textContent='원하면 완료한 주차를 다시 연습할 수 있어요.';
+    document.getElementById('reviewActionButton').textContent='8주차 다시 연습';
+    return;
+  }
+  const weekNumber=profile.progress.currentWeek;
+  if(!reviewAvailable(profile,state.child,weekNumber)){action.hidden=true;return;}
   action.hidden=false;
-  document.getElementById('reviewActionTitle').textContent=legacy.weeklyReview.completed
-    ? who+' · 이번 주 학습 완료'
-    : who+' · 주간복습 가능';
-  document.getElementById('reviewActionText').textContent=legacy.weeklyReview.completed
-    ? '주간복습까지 모두 마쳤어요. 원하면 다시 연습할 수 있어요.'
-    : '5회 학습을 모두 마쳤어요. 준비되면 복습을 시작하세요.';
-  document.getElementById('reviewActionButton').textContent=legacy.weeklyReview.completed
-    ? '다시 연습하기'
-    : '주간복습 시작';
+  document.getElementById('reviewActionTitle').textContent=who+' · '+weekNumber+'주차 주간복습 가능';
+  document.getElementById('reviewActionText').textContent='5회 학습을 모두 마쳤어요. 준비되면 복습을 시작하세요.';
+  document.getElementById('reviewActionButton').textContent='주간복습 시작';
 }
 function chooseChild(child){
   state.child=child;
@@ -423,19 +484,22 @@ function chooseChild(child){
   startExistingCourse(profile);
 }
 function startExistingCourse(profile){
-  const legacy=profile.legacyV04;
-  if(legacy.completedLessons>=weekLetters.length){
-    state.mode=legacy.weeklyReview.completed?'complete':'review-ready';
+  const progress=profile.progress;
+  if(progress.courseCompleted || reviewAvailable(profile,state.child,progress.currentWeek)){
     show('home');
     updateProgressDisplay();
     return;
   }
-  startLesson(legacy.completedLessons);
+  startCourseSession(state.child,progress.currentWeek,progress.currentSession);
 }
 function startSelectedWeeklyReview(){
   if(!state.child) return;
-  const legacy=store().children[state.child].legacyV04;
-  if(legacy.completedLessons>=weekLetters.length) startWeeklyReview();
+  const profile=store().children[state.child];
+  if(profile.progress.courseCompleted){
+    startCourseSession(state.child,8,1,true);
+    return;
+  }
+  if(reviewAvailable(profile,state.child,profile.progress.currentWeek)) startWeeklyReview(state.child,profile.progress.currentWeek);
 }
 
 function showPlacementIntro(child,profile){
@@ -544,12 +608,7 @@ function finishPlacement(profile,attempt,test,details){
   profile.placement.activeAttempt=null;
   profile.placement.attempts.push({...clone(result),answers:clone(attempt.answers)});
   profile.placement.attempts=profile.placement.attempts.slice(-5);
-  profile.progress.startWeek=details.startWeek;
-  profile.progress.currentWeek=details.startWeek;
-  profile.progress.currentSession=1;
-  profile.progress.placedWeeks=details.startWeek>1
-    ? Array.from({length:details.startWeek-1},(_,index)=>index+1)
-    : [];
+  initializeProgressFromPlacement(profile,state.child);
   return result;
 }
 function advanceOlderPlacement(context){
@@ -663,10 +722,7 @@ function skipPlacement(){
   profile.placement.status='skipped';
   profile.placement.activeAttempt=null;
   profile.placement.result=result;
-  profile.progress.startWeek=1;
-  profile.progress.currentWeek=1;
-  profile.progress.currentSession=1;
-  profile.progress.placedWeeks=[];
+  initializeProgressFromPlacement(profile,state.child);
   save(data);
   showPlacementResult(result);
 }
@@ -702,31 +758,236 @@ function showPlacementResult(result){
   updateProgressDisplay();
 }
 
-function shuffled(values){return [...values].sort(()=>Math.random()-.5);}
-function makeLearnItem(letter,wordObj,phase){return {type:'learn',letter,wordObj,phase};}
-function makeQuizItem(letter,wordObj,phase){return {type:'quiz',letter,wordObj,phase};}
-function startLesson(lessonIndex){
-  state.mode='lesson';
-  state.lessonIndex=lessonIndex;
-  state.currentLetter=weekLetters[lessonIndex];
-  state.items=[];
-  if(lessonIndex>0){
-    const previous=weekLetters[lessonIndex-1];
-    shuffled(words[previous]).slice(0,2).forEach(word=>state.items.push(makeQuizItem(previous,word,'review')));
+const consonantOrder=['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const vowelOrder=['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'];
+const pictureBank={
+  '엄마':'👩','아빠':'👨','태윤':'👦🏻','재윤':'🧒🏻','아기':'👶','할머니':'👵','할아버지':'👴',
+  '강아지':'🐶','고양이':'🐱','토끼':'🐰','사자':'🦁','원숭이':'🐵','나비':'🦋','오리':'🦆',
+  '자동차':'🚗','버스':'🚌','기차':'🚂','비행기':'✈️','배':'🚢',
+  '밥':'🍚','사과':'🍎','바나나':'🍌','우유':'🥛','빵':'🍞','오이':'🥒','멜론':'🍈',
+  '눈':'👁️','코':'👃','입':'👄','손':'✋','발':'🦶','다리':'🦵',
+  '공':'⚽','로봇':'🤖','책':'📚','가방':'🎒','모자':'👒','문':'🚪','물':'💧','비누':'🧼','나무':'🌳','바다':'🌊','포도':'🍇','하마':'🦛',
+  '가족':'👨‍👩‍👦','동물':'🐾','탈것':'🚙','음식':'🍽️','몸':'🙋','생활물건':'🎒','장난감':'🧸','첫 글자':'🔤'
+};
+const sentencePictures={
+  '아기가 자요.':'👶😴','나비가 와요.':'🦋👋','기차가 가요.':'🚂💨','우유를 마셔요.':'🥛😋','사자가 와요.':'🦁👋'
+};
+const consonantExamples={
+  'ㄱ':'기차','ㄴ':'나비','ㄷ':'다리','ㄹ':'로봇','ㅁ':'모자','ㅂ':'바나나','ㅅ':'사자',
+  'ㅇ':'오리','ㅈ':'자동차','ㅊ':'책','ㅋ':'코','ㅌ':'토끼','ㅍ':'포도','ㅎ':'할머니'
+};
+function stableChoices(answer,pool,count){
+  const unique=[answer,...pool.filter(value=>value!==answer)].filter((value,index,array)=>array.indexOf(value)===index);
+  const selected=unique.slice(0,count);
+  const offset=[...String(answer)].reduce((sum,char)=>sum+char.codePointAt(0),0)%selected.length;
+  return selected.slice(offset).concat(selected.slice(0,offset));
+}
+function initialOf(word){
+  const code=String(word).charCodeAt(0)-0xAC00;
+  if(code<0 || code>11171) return '';
+  return ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'][Math.floor(code/588)];
+}
+function entryFor(raw){
+  const value=String(raw);
+  const space=value.indexOf(' ');
+  if(space>0 && /[^가-힣ㄱ-ㅎㅏ-ㅣ]/.test(value.slice(0,space))){
+    const word=value.slice(space+1);
+    return {word,emoji:value.slice(0,space),initial:initialOf(word)};
   }
-  const newWords=shuffled(words[state.currentLetter]).slice(0,3);
-  newWords.forEach((word,index)=>{
-    state.items.push(index===0?makeLearnItem(state.currentLetter,word,'new'):makeQuizItem(state.currentLetter,word,'new'));
+  const word=value.replace(/[.?!]$/,'');
+  return {word:value,emoji:pictureBank[word] || sentencePictures[value] || '🌱',initial:initialOf(word)};
+}
+function itemChoice(id,label,speech=label){return {id,label,speech};}
+function learningItem(config){
+  return Object.assign({
+    type:'question',phase:'new',skillId:'practice',targetId:'',emoji:'',display:'',word:'',prompt:'',speech:'',choices:[],answer:null,answerSpeech:''
+  },config);
+}
+function infoItem(config){
+  return learningItem(Object.assign({type:'info',choices:[itemChoice('continue','알겠어요 👍','알겠어요')]},config));
+}
+function taeyoonConsonantItem(target,variant,phase){
+  const example=entryFor(consonantExamples[target] || '기차');
+  const choices=stableChoices(target,consonantOrder,3).map(value=>itemChoice(value,value,spokenLetter(value)));
+  if(variant===0){
+    const note=target==='ㅇ'?'이응은 첫소리가 없는 낱말의 첫 글자에도 와요.':spokenLetter(target)+'을 만나봐요.';
+    return infoItem({phase,skillId:'consonant-recognize',targetId:target,display:target,word:spokenLetter(target),prompt:note,speech:spokenLetter(target)+'. '+note});
+  }
+  if(variant===2){
+    return learningItem({phase,skillId:'initial-letter',targetId:target,emoji:example.emoji,display:'?',word:example.word,prompt:example.word+'의 첫 글자를 찾아보세요.',speech:example.word+'의 첫 글자를 찾아보세요.',choices,answer:target,answerSpeech:example.word+'의 첫 글자는 '+spokenLetter(target)+'이에요.'});
+  }
+  return learningItem({phase,skillId:variant===3?'consonant-discriminate':'consonant-recognize',targetId:target,display:variant===1?'🔊':target,word:'',prompt:spokenLetter(target)+'을 찾아보세요.',speech:spokenLetter(target)+'을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'이에요.'});
+}
+function taeyoonVowelItem(target,variant,phase){
+  const choices=stableChoices(target,vowelOrder,3).map(value=>itemChoice(value,value,spokenLetter(value)));
+  if(variant===0) return infoItem({phase,skillId:'vowel-recognize',targetId:target,display:target,word:spokenLetter(target),prompt:spokenLetter(target)+' 소리의 모음을 만나봐요.',speech:spokenLetter(target)+'. 모음 '+target});
+  return learningItem({phase,skillId:variant===3?'vowel-discriminate':'vowel-sound-match',targetId:target,display:variant===1?'🔊':target,prompt:spokenLetter(target)+' 소리의 모음을 찾아보세요.',speech:spokenLetter(target)+' 소리의 모음을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'예요.'});
+}
+function syllableParts(syllable){
+  const code=String(syllable).charCodeAt(0)-0xAC00;
+  if(code<0 || code>11171) return null;
+  const initials=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  const vowels=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+  return {initial:initials[Math.floor(code/588)],vowel:vowels[Math.floor((code%588)/28)]};
+}
+function taeyoonSyllableItem(target,pool,variant,phase){
+  const parts=syllableParts(target);
+  const choices=stableChoices(target,pool,3).map(value=>itemChoice(value,value,value));
+  const display=parts?parts.initial+' + '+parts.vowel:'글자 만들기';
+  if(variant===0) return infoItem({phase,skillId:'combine-exposure',targetId:target,display,word:target,prompt:'두 글자 조각을 합쳐 보세요.',speech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'가 만나서 '+target});
+  return learningItem({phase,skillId:variant===3?'read-syllable':'combine',targetId:target,display,word:'무슨 글자가 될까요?',prompt:'자음과 모음을 합쳐 보세요.',speech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'를 합쳐 보세요.',choices,answer:target,answerSpeech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'가 만나서 '+target});
+}
+function taeyoonWordItem(target,pool,variant,phase){
+  const entry=entryFor(target);
+  const choices=stableChoices(target,pool,3);
+  if(variant===0) return infoItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:target,prompt:'그림과 낱말을 함께 읽어보세요.',speech:target});
+  if(variant%2===0){
+    return learningItem({phase,skillId:'picture-word',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'낱말에 맞는 그림을 골라보세요.',speech:target+'. 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,entryFor(value).emoji,value)),answer:target,answerSpeech:target+'이에요.'});
+  }
+  return learningItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:'알맞은 낱말은?',prompt:'그림에 맞는 낱말을 골라보세요.',speech:'그림에 맞는 낱말을 골라보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'정답은 '+target+'예요.'});
+}
+function taeyoonSentenceItem(target,pool,variant,phase){
+  const choices=stableChoices(target,pool,3);
+  if(variant===0) return infoItem({phase,skillId:'read-sentence',targetId:target,emoji:sentencePictures[target],display:'',word:target,prompt:'문장을 천천히 읽어보세요.',speech:target});
+  return learningItem({phase,skillId:'picture-sentence',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'문장의 뜻에 맞는 그림을 골라보세요.',speech:target+' 문장에 맞는 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,sentencePictures[value],value)),answer:target,answerSpeech:target});
+}
+function taeyoonStageItem(week,target,pool,variant,phase){
+  if(week.stage==='consonant') return taeyoonConsonantItem(target,variant,phase);
+  if(week.stage==='vowel') return taeyoonVowelItem(target,variant,phase);
+  if(week.stage==='syllable') return taeyoonSyllableItem(target,pool,variant,phase);
+  if(week.stage==='word') return taeyoonWordItem(target,pool,variant,phase);
+  return taeyoonSentenceItem(target,pool,variant,phase);
+}
+function buildTaeyoonItems(week,session,isReview){
+  const targets=isReview?week.weeklyReview.targets:session.targets;
+  const stagePool=week.weeklyReview.targets;
+  const items=[];
+  if(!isReview){
+    const sessionIndex=week.sessions.indexOf(session);
+    if(sessionIndex>0){
+      const previous=week.sessions[sessionIndex-1];
+      const previousTarget=previous.targets[previous.targets.length-1];
+      items.push(taeyoonStageItem(week,previousTarget,stagePool,2,'review'));
+    }
+    items.push(taeyoonStageItem(week,targets[0],stagePool,0,'new'));
+  }
+  const wanted=isReview?5:5-items.length;
+  for(let index=0;index<wanted;index++){
+    const target=targets[index%targets.length];
+    items.push(taeyoonStageItem(week,target,stagePool,(index%3)+1,isReview?'weekreview':'new'));
+  }
+  return items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
+}
+function allYoungerEntries(){
+  return Object.keys(pictureBank).map(entryFor).filter(entry=>entry.initial);
+}
+function youngerEntriesFor(targets){
+  return targets.map(target=>{
+    if(consonantOrder.includes(target)) return entryFor(consonantExamples[target] || '기차');
+    return entryFor(target);
   });
-  if(state.child==='older') state.items.push({type:'combine',letter:state.currentLetter,phase:'new'});
-  else state.items.push(makeLearnItem(state.currentLetter,shuffled(words[state.currentLetter])[0],'new'));
+}
+function youngerDistractor(answer,initialDifferent=false){
+  return allYoungerEntries().find(entry=>entry.word!==answer.word && (!initialDifferent || entry.initial!==answer.initial)) || entryFor('기차');
+}
+function youngerPair(answer,other){
+  return stableChoices(answer.word,[answer.word,other.word],2).map(word=>word===answer.word?answer:other);
+}
+function youngerPictureFind(entry,phase){
+  const other=youngerDistractor(entry,true);
+  return learningItem({phase,skillId:'picture-find',targetId:entry.word,display:'🔊',word:'어디에 있을까요?',prompt:entry.word+'를 찾아보세요.',speech:entry.word+'를 찾아보세요.',choices:youngerPair(entry,other).map(value=>itemChoice(value.word,value.emoji+' '+value.word,value.word)),answer:entry.word,answerSpeech:entry.word+'를 찾았어요!'});
+}
+function youngerPictureWord(entry,phase){
+  return infoItem({phase,skillId:'picture-word',targetId:entry.word,emoji:entry.emoji,display:'',word:entry.word,prompt:'그림, 소리, 낱말 모양을 함께 만나봐요.',speech:entry.word+'. 같이 말해볼까요?'});
+}
+function youngerInitialExposure(entry,phase){
+  const initial=entry.initial || 'ㄱ';
+  return infoItem({phase,skillId:'initial-exposure',targetId:entry.word,emoji:entry.emoji,display:initial,word:entry.word,prompt:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.',speech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
+}
+function youngerInitialChoice(entry,phase){
+  const initial=entry.initial || 'ㄱ';
+  const other=consonantOrder.find(value=>value!==initial) || 'ㄴ';
+  return learningItem({phase,skillId:'initial-choice',targetId:entry.word,emoji:entry.emoji,display:'?',word:entry.word,prompt:'첫 글자를 같이 찾아볼까요?',speech:entry.word+'의 첫 글자를 같이 찾아볼까요?',choices:stableChoices(initial,[initial,other],2).map(value=>itemChoice(value,value,spokenLetter(value))),answer:initial,answerSpeech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
+}
+function youngerSameInitial(entry,entries,phase){
+  const match=entries.find(value=>value.word!==entry.word && value.initial===entry.initial) || allYoungerEntries().find(value=>value.word!==entry.word && value.initial===entry.initial) || entry;
+  const other=youngerDistractor(entry,true);
+  return learningItem({phase,skillId:'same-initial',targetId:entry.initial,emoji:entry.emoji,display:entry.initial,word:entry.word,prompt:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',speech:entry.word+'와 같은 '+spokenLetter(entry.initial)+'으로 시작하는 그림을 찾아보세요.',choices:youngerPair(match,other).map(value=>itemChoice(value.word,value.emoji+' '+value.word,value.word)),answer:match.word,answerSpeech:entry.word+'와 '+match.word+'는 모두 '+spokenLetter(entry.initial)+'으로 시작해요.'});
+}
+function buildYoungerItems(week,session,isReview,supportLevel){
+  const targets=isReview?week.weeklyReview.targets:session.targets;
+  const entries=youngerEntriesFor(targets);
+  const plans={
+    'picture-first':['picture-find','picture-find','picture-word','picture-find'],
+    'sound-link':['picture-find','picture-word','picture-find','initial-exposure'],
+    'initial-intro':['picture-find','picture-word','initial-exposure','initial-choice'],
+    'initial-ready':['picture-find','picture-word','initial-choice','same-initial','same-initial']
+  };
+  const sameInitialPlans={
+    'picture-first':['picture-find','picture-word','initial-exposure','same-initial'],
+    'sound-link':['picture-find','picture-word','initial-exposure','same-initial'],
+    'initial-intro':['picture-word','initial-exposure','initial-choice','same-initial'],
+    'initial-ready':['initial-exposure','initial-choice','same-initial','same-initial','same-initial']
+  };
+  const selectedPlans=week.stage==='same-initial'?sameInitialPlans:plans;
+  const plan=[...(selectedPlans[supportLevel] || selectedPlans['picture-first'])];
+  if(isReview && plan.length<5) plan.push('picture-find');
+  return plan.map((type,index)=>{
+    const entry=entries[index%entries.length];
+    const phase=isReview?'weekreview':'new';
+    let item;
+    if(type==='picture-word') item=youngerPictureWord(entry,phase);
+    else if(type==='initial-exposure') item=youngerInitialExposure(entry,phase);
+    else if(type==='initial-choice') item=youngerInitialChoice(entry,phase);
+    else if(type==='same-initial') item=youngerSameInitial(entry,entries,phase);
+    else item=youngerPictureFind(entry,phase);
+    item.itemId=(isReview?'review':session.id)+':item-'+(index+1);
+    return item;
+  });
+}
+function supportLevelFor(profile){
+  return profile.placement.result && profile.placement.result.supportLevel || 'picture-first';
+}
+function buildCourseItems(child,week,session,isReview,profile){
+  return child==='older'
+    ? buildTaeyoonItems(week,session,isReview)
+    : buildYoungerItems(week,session,isReview,supportLevelFor(profile));
+}
+function startCourseSession(child,weekNumber,sessionNumber,replay=false){
+  const data=store();
+  const profile=data.children[child];
+  if(!weekNumber || !sessionNumber) return;
+  const week=weekFor(child,weekNumber);
+  const session=week && week.sessions[sessionNumber-1];
+  if(!session) return;
+  state.child=child;
+  state.mode='lesson';
+  state.weekNumber=weekNumber;
+  state.sessionNumber=sessionNumber;
+  state.activityId=sessionActivityId(child,weekNumber,sessionNumber);
+  state.replay=Boolean(replay || weekNumber!==profile.progress.currentWeek || sessionNumber!==profile.progress.currentSession);
+  state.items=buildCourseItems(child,week,session,false,profile);
   begin();
 }
-function startWeeklyReview(){
+function startWeekPractice(child,weekNumber){
+  const profile=store().children[child];
+  const status=weekState(profile,child,weekNumber);
+  if(!['done','active'].includes(status)) return;
+  const sessionNumber=status==='active'?profile.progress.currentSession:1;
+  startCourseSession(child,weekNumber,sessionNumber,status==='done');
+}
+function startWeeklyReview(child=state.child,weekNumber){
+  const data=store();
+  const profile=data.children[child];
+  if(!weekNumber || (!reviewAvailable(profile,child,weekNumber) && !(profile.progress.weeklyReviews[reviewActivityId(child,weekNumber)] || {}).completed)) return;
+  const week=weekFor(child,weekNumber);
+  state.child=child;
   state.mode='weekreview';
-  state.lessonIndex=weekLetters.length;
-  state.items=[];
-  weekLetters.forEach(letter=>state.items.push(makeQuizItem(letter,shuffled(words[letter])[0],'weekreview')));
+  state.weekNumber=weekNumber;
+  state.sessionNumber=null;
+  state.activityId=reviewActivityId(child,weekNumber);
+  state.replay=Boolean((profile.progress.weeklyReviews[state.activityId] || {}).completed);
+  state.items=buildCourseItems(child,week,week.weeklyReview,true,profile);
   begin();
 }
 function begin(){
@@ -740,85 +1001,72 @@ function render(){
   if(state.index>=state.items.length){finish();return;}
   const item=state.items[state.index];
   state.answered=false;
-  document.getElementById('nextBtn').disabled=true;
+  const nextButton=document.getElementById('nextBtn');
+  nextButton.disabled=true;
+  nextButton.textContent=state.index===state.items.length-1?'마치기':'다음 ▶';
   document.getElementById('feedback').textContent='';
-  document.getElementById('choices').innerHTML='';
+  const choices=document.getElementById('choices');
+  choices.innerHTML='';
+  choices.classList.toggle('two-choice',state.child==='younger');
   document.getElementById('progressText').textContent=(state.index+1)+' / '+state.items.length;
   document.getElementById('progressBar').style.width=(((state.index+1)/state.items.length)*100)+'%';
   document.getElementById('stars').textContent=state.stars;
-
-  const isReview=item.phase==='review' || item.phase==='weekreview';
-  document.getElementById('phaseBadge').textContent=
-    item.phase==='review'?'🔁 이전 학습 복습 · 약 3분':
-    item.phase==='weekreview'?'🧩 5회 학습 복습 · 약 10분':
-    '🌱 새 학습 · 약 7분';
-  document.getElementById('timeText').textContent=
-    state.mode==='weekreview'?'주간 복습':(state.lessonIndex===0?'새 학습 중심':'복습 3분 + 새 학습 7분');
-
-  if(item.type==='learn'){
-    document.getElementById('lessonTitle').textContent=childName(state.child)+' · '+item.letter+' 배우기';
-    document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
-    document.getElementById('bigLetter').textContent=item.letter;
-    document.getElementById('word').textContent=item.wordObj.word;
-    document.getElementById('hint').textContent=state.child==='older'
-      ? item.wordObj.word+'의 첫 글자는 "'+item.letter+'"이에요.'
-      : '그림을 보고 소리와 글자를 같이 익혀요.';
+  document.getElementById('phaseBadge').textContent=item.phase==='review'
+    ? '🔁 이전 개념 복습'
+    : item.phase==='weekreview'?'🧩 '+state.weekNumber+'주차 복습':'🌱 새 학습';
+  document.getElementById('timeText').textContent=state.mode==='weekreview'
+    ? '주간복습'
+    : (state.child==='older'?'약 8~10분':'약 5~7분');
+  const week=weekFor(state.child,state.weekNumber);
+  document.getElementById('lessonTitle').textContent=childName(state.child)+' · '+state.weekNumber+'주차 '+(state.mode==='weekreview'?'주간복습':state.sessionNumber+'회');
+  document.getElementById('bigEmoji').textContent=item.emoji || '';
+  document.getElementById('bigLetter').textContent=item.display || '';
+  document.getElementById('word').textContent=item.word || week.title;
+  document.getElementById('hint').textContent=item.prompt;
+  if(item.type==='info'){
     const button=document.createElement('button');
     button.className='choice correct';
     button.textContent='알겠어요 👍';
     button.onclick=()=>{
+      if(state.answered) return;
       state.answered=true;
-      document.getElementById('nextBtn').disabled=false;
-      speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');
+      button.disabled=true;
+      nextButton.disabled=false;
+      speak(item.speech);
     };
-    document.getElementById('choices').appendChild(button);
-    speak(spokenLetter(item.letter)+'. '+item.wordObj.word);
-    return;
+    choices.appendChild(button);
+  }else{
+    renderChoices(item);
   }
-  if(item.type==='combine'){
-    const vowelMap={'ㄱ':'가','ㄴ':'나','ㄷ':'다','ㄹ':'라','ㅁ':'마','ㅂ':'바'};
-    document.getElementById('lessonTitle').textContent='태윤 · 글자 만들기';
-    document.getElementById('bigEmoji').textContent='🧩';
-    document.getElementById('bigLetter').textContent=item.letter+' + ㅏ';
-    document.getElementById('word').textContent='무슨 글자가 될까요?';
-    document.getElementById('hint').textContent='자음과 모음을 합쳐 보세요.';
-    const answer=vowelMap[item.letter];
-    const options=shuffled([answer,'사','자'].filter((value,index,array)=>array.indexOf(value)===index)).slice(0,3);
-    renderChoices(options,answer,spokenLetter(item.letter)+'과 아가 만나서 '+answer);
-    return;
-  }
-  document.getElementById('lessonTitle').textContent=childName(state.child)+(isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
-  document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
-  document.getElementById('bigLetter').textContent='?';
-  document.getElementById('word').textContent=item.wordObj.word;
-  document.getElementById('hint').textContent=state.child==='older'
-    ? '"'+item.wordObj.word+'"의 첫 글자를 골라보세요.'
-    : '그림 이름을 듣고 첫 글자를 찾아보세요.';
-  const options=shuffled([item.letter,...distractors[item.letter].slice(0,2)]);
-  renderChoices(options,item.letter,item.wordObj.word+'의 첫 글자는 '+spokenLetter(item.letter));
-  speak(item.wordObj.word+'. 첫 글자를 찾아보세요.');
+  speak(item.speech);
 }
-function renderChoices(options,answer,successSpeech){
+function renderChoices(item){
   const wrap=document.getElementById('choices');
-  options.forEach(option=>{
+  item.choices.forEach(option=>{
     const button=document.createElement('button');
     button.className='choice';
-    button.textContent=option;
+    button.textContent=option.label;
+    button.dataset.choiceId=option.id;
     button.onclick=()=>{
       if(state.answered) return;
       state.answered=true;
       [...wrap.children].forEach(element=>element.disabled=true);
-      if(option===answer){
+      const correct=option.id===item.answer;
+      if(correct){
         button.classList.add('correct');
         state.stars++;
         document.getElementById('stars').textContent=state.stars;
-        document.getElementById('feedback').textContent='🎉 정답! 정말 잘했어요!';
-        speak('정답! '+successSpeech);
+        document.getElementById('feedback').textContent='🎉 잘했어요!';
+        speak('잘했어요! '+item.answerSpeech);
       }else{
         button.classList.add('wrong');
-        [...wrap.children].forEach(element=>{if(element.textContent===answer) element.classList.add('correct');});
-        document.getElementById('feedback').textContent='괜찮아요. 정답을 같이 볼까요?';
-        speak('정답은 '+spokenLetter(answer)+'이에요. 한 번 더 기억해요.');
+        [...wrap.children].forEach(element=>{
+          if(element.dataset.choiceId===String(item.answer)) element.classList.add('correct');
+        });
+        document.getElementById('feedback').textContent=state.child==='younger'
+          ? '정답을 같이 볼까요? 🌱'
+          : '괜찮아요. 정답을 같이 볼까요?';
+        speak(item.answerSpeech+' 같이 볼까요?');
       }
       document.getElementById('nextBtn').disabled=false;
     };
@@ -827,79 +1075,78 @@ function renderChoices(options,answer,successSpeech){
 }
 function spokenLetter(letter){return letterSpeech[letter] || letter;}
 function speak(text){
-  if(!('speechSynthesis' in window)) return;
+  if(!text || !('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   const utterance=new SpeechSynthesisUtterance(text);
   utterance.lang='ko-KR';
-  utterance.rate=0.85;
+  utterance.rate=state.child==='younger'?0.78:0.85;
   utterance.pitch=1.05;
   speechSynthesis.speak(utterance);
 }
 function speakCurrent(){
   const item=state.items[state.index];
-  if(!item) return;
-  if(item.type==='combine') speak(spokenLetter(item.letter)+'과 아를 합쳐 보세요.');
-  else speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');
+  if(item) speak(item.speech);
 }
 function nextStep(){state.index++;render();}
-function recordCurrentSession(profile){
-  const legacy=profile.legacyV04;
+function recordCurrentActivity(profile){
   const now=new Date().toISOString();
-  if(state.mode==='weekreview'){
-    const previous=legacy.weeklyReview || {completed:false,bestStars:0,completedAt:null};
-    const previousBest=safeCount(previous.bestStars);
-    const awarded=previous.completed?0:state.stars;
-    profile.stars+=awarded;
-    legacy.weeklyReview={
-      completed:true,
-      bestStars:Math.max(previousBest,state.stars),
-      completedAt:previous.completedAt || now
-    };
-    return {awarded,firstCompletion:!previous.completed};
-  }
-  const key='lesson-'+state.lessonIndex;
-  const previous=legacy.records[key] || {completed:false,bestStars:0,completedAt:null};
-  const previousBest=safeCount(previous.bestStars);
-  const awarded=previous.completed?0:state.stars;
-  profile.stars+=awarded;
-  legacy.records[key]={
+  const records=state.mode==='weekreview'?profile.progress.weeklyReviews:profile.progress.completedSessions;
+  const previous=records[state.activityId] || {completed:false,bestStars:0,completedAt:null,attempts:0};
+  const firstCompletion=!previous.completed;
+  const awarded=firstCompletion?state.stars:0;
+  profile.stars=Math.max(profile.stars,profile.legacyStars)+awarded;
+  records[state.activityId]={
     completed:true,
-    bestStars:Math.max(previousBest,state.stars),
-    completedAt:previous.completedAt || now
+    bestStars:Math.max(safeCount(previous.bestStars),state.stars),
+    completedAt:previous.completedAt || now,
+    attempts:safeCount(previous.attempts)+1
   };
-  if(!previous.completed) legacy.completedLessons=Math.max(legacy.completedLessons,state.lessonIndex+1);
-  return {awarded,firstCompletion:!previous.completed};
+  if(firstCompletion && state.mode==='lesson' && state.weekNumber===profile.progress.currentWeek && state.sessionNumber===profile.progress.currentSession){
+    if(state.sessionNumber<5) profile.progress.currentSession=state.sessionNumber+1;
+  }
+  if(firstCompletion && state.mode==='weekreview' && state.weekNumber===profile.progress.currentWeek){
+    if(state.weekNumber<8){
+      profile.progress.currentWeek=state.weekNumber+1;
+      profile.progress.currentSession=1;
+    }else{
+      profile.progress.courseCompleted=true;
+      profile.progress.currentSession=5;
+    }
+  }
+  return {awarded,firstCompletion};
 }
 function finish(){
   document.getElementById('progressBar').style.width='100%';
   const data=store();
   const profile=data.children[state.child];
-  const result=recordCurrentSession(profile);
+  const result=recordCurrentActivity(profile);
   save(data);
-  const who=state.child==='older'?'태윤이':'재윤이';
+  const who=state.child==='older'?'태윤이가':'재윤이가';
   const isReview=state.mode==='weekreview';
-  document.getElementById('doneTitle').textContent=isReview?'주간복습 완료!':'오늘 학습 완료!';
+  const completedCourse=store().children[state.child].progress.courseCompleted;
+  document.getElementById('doneTitle').textContent=completedCourse
+    ? '8주 한글 과정 완료!'
+    : isReview?'주간복습 완료!':'오늘 학습 완료!';
   const rewardText=result.awarded>0
     ? '누적 별에 <b>⭐ '+result.awarded+'개</b>가 반영되었어요.'
-    : '반복 학습이라 누적 별은 중복해서 늘어나지 않아요.';
-  document.getElementById('doneText').innerHTML=
-    who+'가 오늘 <b>⭐ '+state.stars+'개</b>를 모았어요.<br>'+rewardText+'<br>'+
-    (isReview
-      ? '앞의 5회 학습에서 배운 ㄱ·ㄴ·ㄷ·ㄹ·ㅁ을 한 번씩 다시 확인했습니다.'
-      : '짧게 끝내고 다음 학습에서 다시 만나는 것이 핵심이에요.');
+    : '다시 연습해도 누적 별은 중복해서 늘어나지 않아요.';
+  const nextText=completedCourse
+    ? '8주 동안 즐겁게 한글을 만났어요!'
+    : isReview?'다음 주차가 열렸어요. 준비되면 이어가요.':'다음 학습도 지금 속도로 천천히 이어가요.';
+  document.getElementById('doneText').innerHTML=who+' 오늘 한글 놀이를 마쳤어요!<br>'+rewardText+'<br>'+nextText;
   show('done');
   updateProgressDisplay();
-  speak('오늘 한글 놀이 끝! 정말 잘했어요!');
+  speak(who+' 오늘 한글 놀이를 마쳤어요! 정말 잘했어요!');
 }
 function repeatToday(){
-  if(state.mode==='weekreview') startWeeklyReview();
-  else startLesson(state.lessonIndex);
+  if(state.mode==='weekreview') startWeeklyReview(state.child,state.weekNumber);
+  else startCourseSession(state.child,state.weekNumber,state.sessionNumber,true);
 }
 function goHome(){show('home');updateProgressDisplay();}
-function reviewStatus(profile){
-  const legacy=profile.legacyV04;
-  if(legacy.weeklyReview.completed) return '주간복습 완료';
-  return legacy.completedLessons>=weekLetters.length?'주간복습 가능':'복습 잠김';
+function reviewStatus(profile,child){
+  if(profile.progress.courseCompleted) return '8주 과정 완료';
+  const weekNumber=profile.progress.currentWeek;
+  return reviewAvailable(profile,child,weekNumber)?'주간복습 가능':'복습 잠김';
 }
 function parentPlacementStatus(profile,child){
   const placement=profile.placement;
@@ -912,18 +1159,50 @@ function parentPlacementStatus(profile,child){
   }
   return '테스트 결과 · '+supportLevelLabel(result.supportLevel)+' · 1주차';
 }
+function completedWeekNumbers(profile,child){
+  return courseFor(child).weeks
+    .filter(week=>{
+      const record=profile.progress.weeklyReviews[reviewActivityId(child,week.number)];
+      return record && record.completed;
+    })
+    .map(week=>week.number);
+}
+function renderParentWeeks(elementId,profile,child){
+  const element=document.getElementById(elementId);
+  element.innerHTML='';
+  courseFor(child).weeks.forEach(week=>{
+    const status=weekState(profile,child,week.number);
+    const span=document.createElement('span');
+    span.className='week-dot '+status;
+    span.textContent=week.number;
+    span.title=week.number+'주차 · '+({placed:'배치로 건너뜀',done:'완료',active:'현재',locked:'잠김'})[status];
+    element.appendChild(span);
+  });
+}
+function parentCourseStatus(profile,child){
+  if(profile.placement.status==='pending' || profile.placement.status==='in-progress') return '학습 시작 전';
+  if(profile.progress.courseCompleted) return '8주 과정 완료';
+  const weekNumber=profile.progress.currentWeek || 1;
+  return weekNumber+'주차 · '+profile.progress.currentSession+'회';
+}
 function openParent(){
   const data=store();
   const older=data.children.older;
   const younger=data.children.younger;
   document.getElementById('pOlderStars').textContent=older.stars+'개';
-  document.getElementById('pOlderProgress').textContent=older.legacyV04.completedLessons+' / '+weekLetters.length;
-  document.getElementById('pOlderReview').textContent=reviewStatus(older);
+  document.getElementById('pOlderProgress').textContent=parentCourseStatus(older,'older');
+  document.getElementById('pOlderReview').textContent=reviewStatus(older,'older');
   document.getElementById('pOlderPlacement').textContent=parentPlacementStatus(older,'older');
+  document.getElementById('pOlderCompleted').textContent='완료 주차 · '+(completedWeekNumbers(older,'older').join(', ') || '없음');
+  document.getElementById('pOlderPlaced').textContent='배치로 건너뜀 · '+(older.progress.placedWeeks.join(', ') || '없음');
+  renderParentWeeks('pOlderWeeks',older,'older');
   document.getElementById('pYoungerStars').textContent=younger.stars+'개';
-  document.getElementById('pYoungerProgress').textContent=younger.legacyV04.completedLessons+' / '+weekLetters.length;
-  document.getElementById('pYoungerReview').textContent=reviewStatus(younger);
+  document.getElementById('pYoungerProgress').textContent=parentCourseStatus(younger,'younger');
+  document.getElementById('pYoungerReview').textContent=reviewStatus(younger,'younger');
   document.getElementById('pYoungerPlacement').textContent=parentPlacementStatus(younger,'younger');
+  document.getElementById('pYoungerCompleted').textContent='완료 주차 · '+(completedWeekNumbers(younger,'younger').join(', ') || '없음');
+  document.getElementById('pYoungerPlaced').textContent='배치로 건너뜀 · '+(younger.progress.placedWeeks.join(', ') || '없음');
+  renderParentWeeks('pYoungerWeeks',younger,'younger');
   document.getElementById('parentModal').classList.add('show');
 }
 function closeParent(event){
