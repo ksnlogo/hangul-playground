@@ -77,6 +77,26 @@ function safeObject(value,fallback=null){
   if(!value || typeof value!=='object' || Array.isArray(value)) return fallback;
   try{return clone(value);}catch(error){return fallback;}
 }
+function isPlainObject(value){
+  return Boolean(value) && typeof value==='object' && !Array.isArray(value);
+}
+function hasValidV05Core(data){
+  if(!isPlainObject(data) || data.version!==5 || !isPlainObject(data.children)) return false;
+  return ['older','younger'].every(child=>{
+    const profile=data.children[child];
+    return isPlainObject(profile) &&
+      isPlainObject(profile.placement) &&
+      isPlainObject(profile.progress) &&
+      isPlainObject(profile.legacyV04);
+  });
+}
+function hasValidV04Core(data){
+  return isPlainObject(data) && data.version===4 && isPlainObject(data.children) &&
+    isPlainObject(data.children.older) && isPlainObject(data.children.younger);
+}
+function hasValidV02Core(data){
+  return isPlainObject(data) && isPlainObject(data.older) && isPlainObject(data.younger);
+}
 function courseIdFor(child){ return CURRICULUM.courses[child].id; }
 function childName(child){ return child==='older'?'태윤':'재윤'; }
 
@@ -183,18 +203,47 @@ function normalizeAttempt(attempt,child){
     answers
   };
 }
+function normalizePlacementResult(result,child){
+  if(!isPlainObject(result)) return null;
+  const kind=result.kind==='skipped'?'skipped':'test';
+  const startWeek=child==='older'
+    ? (result.allPassed?8:([1,4,6,7,8].includes(Number(result.startWeek))?Number(result.startWeek):1))
+    : 1;
+  const allowedSupportLevels=['picture-first','sound-link','initial-intro','initial-ready'];
+  const supportLevel=child==='younger'
+    ? (allowedSupportLevels.includes(result.supportLevel)?result.supportLevel:'picture-first')
+    : null;
+  return {
+    kind,
+    testId:typeof result.testId==='string'?result.testId:null,
+    completedAt:typeof result.completedAt==='string'?result.completedAt:null,
+    startedAt:typeof result.startedAt==='string'?result.startedAt:null,
+    startWeek,
+    supportLevel,
+    failedStageId:typeof result.failedStageId==='string'?result.failedStageId:null,
+    allPassed:Boolean(result.allPassed),
+    stageScores:Array.isArray(result.stageScores)
+      ? result.stageScores.map(value=>safeObject(value)).filter(Boolean).slice(0,5)
+      : []
+  };
+}
 function normalizePlacement(placement,child){
   const clean=emptyPlacement();
   if(!placement || typeof placement!=='object') return clean;
+  const currentTestId=CURRICULUM.levelTests[child].id;
   const allowed=['pending','in-progress','completed','skipped'];
   clean.status=allowed.includes(placement.status)?placement.status:'pending';
   clean.testVersion=typeof placement.testVersion==='string'?placement.testVersion:null;
   clean.activeAttempt=normalizeAttempt(placement.activeAttempt,child);
-  clean.result=safeObject(placement.result);
+  clean.result=normalizePlacementResult(placement.result,child);
   clean.attempts=Array.isArray(placement.attempts)
     ? placement.attempts.map(value=>safeObject(value)).filter(Boolean).slice(-5)
     : [];
-  if(clean.status==='in-progress' && !clean.activeAttempt) clean.status='pending';
+  if(clean.status==='in-progress' && (clean.testVersion!==currentTestId || !clean.activeAttempt)){
+    clean.status='pending';
+    clean.testVersion=currentTestId;
+    clean.activeAttempt=null;
+  }
   if((clean.status==='completed' || clean.status==='skipped') && !clean.result) clean.status='pending';
   return clean;
 }
@@ -216,8 +265,8 @@ function normalizeProfile(profile,child){
   const clean=emptyProfile(child);
   if(!profile || typeof profile!=='object') return clean;
   clean.courseId=courseIdFor(child);
-  clean.stars=safeCount(profile.stars);
-  clean.legacyStars=Math.min(clean.stars,safeCount(profile.legacyStars));
+  clean.legacyStars=safeCount(profile.legacyStars);
+  clean.stars=Math.max(safeCount(profile.stars),clean.legacyStars);
   clean.placement=normalizePlacement(profile.placement,child);
   clean.progress=normalizeProgress(profile.progress);
   clean.legacyV04=normalizeLegacyProfile(profile.legacyV04);
@@ -273,14 +322,14 @@ function readJson(key){
 function store(){
   let data=null;
   const current=readJson(STORAGE_KEY);
-  if(current) data=normalizeData(current);
+  if(hasValidV05Core(current)) data=normalizeData(current);
   if(!data){
     const v04=readJson(V04_STORAGE_KEY);
-    if(v04) data=migrateV04(v04);
+    if(hasValidV04Core(v04)) data=migrateV04(v04);
   }
   if(!data){
     const v02=readJson(V02_STORAGE_KEY);
-    if(v02) data=migrateV02(v02);
+    if(hasValidV02Core(v02)) data=migrateV02(v02);
   }
   if(!data) data=normalizeData(memoryFallback);
   memoryFallback=clone(data);

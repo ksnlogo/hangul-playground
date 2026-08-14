@@ -27,10 +27,10 @@
     week(2,'기본 자음 2','consonant',[
       session('session-1','ㅂ 만나기',['ㅂ'],['review','recognize','initial-sound']),
       session('session-2','ㅅ 만나기',['ㅅ'],['review','recognize','initial-sound']),
-      session('session-3','ㅇ 만나기',['ㅇ'],['review','recognize','initial-sound']),
+      session('session-3','ㅇ 만나기',['ㅇ'],['review','recognize','initial-letter']),
       session('session-4','ㅈ 만나기',['ㅈ'],['review','recognize','initial-sound']),
       session('session-5','ㅊ 만나기',['ㅊ'],['review','recognize','initial-sound'])
-    ],weeklyReview(['ㅂ','ㅅ','ㅇ','ㅈ','ㅊ'],['recognize','initial-sound'])),
+    ],weeklyReview(['ㅂ','ㅅ','ㅇ','ㅈ','ㅊ'],['recognize','initial-letter'])),
     week(3,'자음 구별하기','consonant',[
       session('session-1','ㅋ 만나기',['ㅋ'],['review','recognize','initial-sound']),
       session('session-2','ㅌ 만나기',['ㅌ'],['review','recognize','initial-sound']),
@@ -59,30 +59,30 @@
       session('session-4','ㅜ와 글자 만들기',['구','누','두','루','무'],['combine','read-syllable']),
       session('session-5','모음 바꾸어 읽기',['가','거','고','구','기'],['combine','discriminate'])
     ],weeklyReview(['가','나','다','라','마','거','너','더','러','머','고','노','도','로','모','구','누','두','루','무'],['combine','read-syllable'])),
-    week(7,'쉬운 단어 읽기','word',[
-      session('session-1','가족 단어',['엄마','아빠','아기'],['picture-word','read-word']),
-      session('session-2','동물 단어',['나비','오리','사자'],['picture-word','read-word']),
-      session('session-3','음식 단어',['우유','사과','바나나'],['picture-word','read-word']),
-      session('session-4','생활 단어',['가방','모자','비누'],['picture-word','read-word']),
-      session('session-5','두세 글자 단어',['기차','다리','로봇'],['picture-word','read-word'])
-    ],weeklyReview(['엄마','아빠','아기','나비','오리','사자','우유','사과','바나나','가방','모자','비누','기차','다리','로봇'],['picture-word','read-word'])),
+    week(7,'받침 없는 쉬운 단어 읽기','word',[
+      session('session-1','동물 단어',['나비','오리','사자'],['picture-word','read-word']),
+      session('session-2','음식 단어',['우유','오이','바나나'],['picture-word','read-word']),
+      session('session-3','생활 단어',['모자','비누','나무'],['picture-word','read-word']),
+      session('session-4','두세 글자 단어',['기차','다리','바다'],['picture-word','read-word']),
+      session('session-5','쉬운 단어 다시 읽기',['나비','우유','모자','기차'],['picture-word','read-word'])
+    ],weeklyReview(['나비','오리','사자','우유','오이','바나나','모자','비누','나무','기차','다리','바다'],['picture-word','read-word'])),
     week(8,'짧은 문장 읽기','sentence',[
-      session('session-1','누가 무엇을 해요',['아기가 자요.','엄마가 와요.'],['picture-sentence','read-sentence']),
-      session('session-2','무엇이 있어요',['사과가 있어요.','나비가 있어요.'],['picture-sentence','read-sentence']),
-      session('session-3','무엇을 먹어요',['우유를 마셔요.','바나나를 먹어요.'],['picture-sentence','read-sentence']),
-      session('session-4','어디로 가요',['기차가 가요.','아빠가 집에 가요.'],['picture-sentence','read-sentence']),
-      session('session-5','짧은 문장 골라 읽기',['아기가 자요.','엄마가 와요.','기차가 가요.'],['picture-sentence','read-sentence'])
-    ],weeklyReview(['아기가 자요.','엄마가 와요.','사과가 있어요.','우유를 마셔요.','기차가 가요.'],['picture-sentence','read-sentence']))
+      session('session-1','아기가 자요',['아기가 자요.'],['picture-sentence','read-sentence']),
+      session('session-2','나비가 와요',['나비가 와요.'],['picture-sentence','read-sentence']),
+      session('session-3','기차가 가요',['기차가 가요.'],['picture-sentence','read-sentence']),
+      session('session-4','우유를 마셔요',['우유를 마셔요.'],['picture-sentence','read-sentence']),
+      session('session-5','사자가 와요',['사자가 와요.'],['picture-sentence','read-sentence'])
+    ],weeklyReview(['아기가 자요.','나비가 와요.','기차가 가요.','우유를 마셔요.','사자가 와요.'],['picture-sentence','read-sentence']))
   ];
 
   const jaeyoonWeeks=[
     week(1,'가족','family',[
       session('session-1','엄마',['👩 엄마'],['picture-find','picture-word']),
       session('session-2','아빠',['👨 아빠'],['picture-find','picture-word']),
-      session('session-3','아기',['👶 아기'],['picture-find','picture-word']),
+      session('session-3','태윤과 재윤',['👦🏻 태윤','🧒🏻 재윤'],['picture-find','picture-word']),
       session('session-4','할머니와 할아버지',['👵 할머니','👴 할아버지'],['picture-find','picture-word']),
-      session('session-5','우리 가족',['👩 엄마','👨 아빠','👶 아기'],['picture-find','picture-word','initial-exposure'])
-    ],weeklyReview(['엄마','아빠','아기','할머니','할아버지'],['picture-find','picture-word'])),
+      session('session-5','우리 가족',['👩 엄마','👨 아빠','👦🏻 태윤','🧒🏻 재윤','👶 아기'],['picture-find','picture-word','initial-exposure'])
+    ],weeklyReview(['엄마','아빠','태윤','재윤','아기','할머니','할아버지'],['picture-find','picture-word'])),
     week(2,'동물','animals',[
       session('session-1','강아지',['🐶 강아지'],['picture-find','picture-word']),
       session('session-2','고양이',['🐱 고양이'],['picture-find','picture-word']),
@@ -114,13 +114,13 @@
     week(6,'장난감과 생활물건','toys-and-objects',[
       session('session-1','공',['⚽ 공'],['picture-find','picture-word']),
       session('session-2','로봇',['🤖 로봇'],['picture-find','picture-word']),
-      session('session-3','자동차 장난감',['🚙 자동차'],['picture-find','picture-word']),
-      session('session-4','가방과 모자',['🎒 가방','👒 모자'],['picture-find','picture-word']),
-      session('session-5','내 물건',['⚽ 공','🤖 로봇','🎒 가방','👒 모자'],['picture-find','picture-word','initial-exposure'])
-    ],weeklyReview(['공','로봇','자동차','가방','모자'],['picture-find','picture-word'])),
+      session('session-3','책',['📚 책'],['picture-find','picture-word']),
+      session('session-4','가방',['🎒 가방'],['picture-find','picture-word']),
+      session('session-5','모자',['👒 모자'],['picture-find','picture-word','initial-exposure'])
+    ],weeklyReview(['공','로봇','책','가방','모자'],['picture-find','picture-word'])),
     week(7,'같은 첫 글자 찾기','same-initial',[
       session('session-1','ㄱ 소리 친구',['강아지','가방','기차','공'],['initial-exposure','same-initial']),
-      session('session-2','ㅁ 소리 친구',['엄마','모자','문','물'],['initial-exposure','same-initial']),
+      session('session-2','ㅁ 소리 친구',['모자','문','물','멜론'],['initial-exposure','same-initial']),
       session('session-3','ㅂ 소리 친구',['버스','바나나','밥','비행기'],['initial-exposure','same-initial']),
       session('session-4','ㅅ 소리 친구',['사과','사자','손'],['initial-exposure','same-initial']),
       session('session-5','첫 소리 친구 모으기',['ㄱ','ㅁ','ㅂ','ㅅ'],['same-initial'])
@@ -135,7 +135,7 @@
   ];
 
   const taeyoonTest={
-    id:'taeyoon-placement-v1',
+    id:'taeyoon-placement-v2',
     title:'태윤 한글 읽기 레벨테스트',
     estimatedMinutes:5,
     maxQuestions:15,
@@ -169,22 +169,22 @@
         questions:[
           question('t-w-1','word','🐶','강아지에 맞는 낱말을 찾아보세요.','강아지에 맞는 낱말을 찾아보세요.',[choice('강아지','강아지'),choice('나비','나비'),choice('모자','모자')],'강아지'),
           question('t-w-2','word','🍎','사과에 맞는 낱말을 찾아보세요.','사과에 맞는 낱말을 찾아보세요.',[choice('우유','우유'),choice('사과','사과'),choice('기차','기차')],'사과'),
-          question('t-w-3','word','🚂','기차에 맞는 낱말을 찾아보세요.','기차에 맞는 낱말을 찾아보세요.',[choice('바나나','바나나'),choice('기차','기차'),choice('로봇','로봇')],'기차')
+          question('t-w-3','word','🚂','기차에 맞는 낱말을 찾아보세요.','기차에 맞는 낱말을 찾아보세요.',[choice('바나나','바나나'),choice('기차','기차'),choice('다리','다리')],'기차')
         ]
       },
       {
         id:'sentence',label:'짧은 문장',startWeek:8,
         questions:[
           question('t-se-1','sentence','😴👶','그림에 맞는 문장을 찾아보세요.','아기가 자는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('아기가 자요.','아기가 자요.'),choice('기차가 가요.','기차가 가요.'),choice('사과가 있어요.','사과가 있어요.')],'아기가 자요.'),
-          question('t-se-2','sentence','🚂💨','그림에 맞는 문장을 찾아보세요.','기차가 가는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('엄마가 와요.','엄마가 와요.'),choice('기차가 가요.','기차가 가요.'),choice('우유를 마셔요.','우유를 마셔요.')],'기차가 가요.'),
-          question('t-se-3','sentence','🍎📦','그림에 맞는 문장을 찾아보세요.','사과가 있는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('나비가 날아요.','나비가 날아요.'),choice('아빠가 자요.','아빠가 자요.'),choice('사과가 있어요.','사과가 있어요.')],'사과가 있어요.')
+          question('t-se-2','sentence','🚂💨','그림에 맞는 문장을 찾아보세요.','기차가 가는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('나비가 와요.','나비가 와요.'),choice('기차가 가요.','기차가 가요.'),choice('우유를 마셔요.','우유를 마셔요.')],'기차가 가요.'),
+          question('t-se-3','sentence','🦁👋','그림에 맞는 문장을 찾아보세요.','사자가 오는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('나비가 와요.','나비가 와요.'),choice('아기가 자요.','아기가 자요.'),choice('사자가 와요.','사자가 와요.')],'사자가 와요.')
         ]
       }
     ]
   };
 
   const jaeyoonTest={
-    id:'jaeyoon-placement-v1',
+    id:'jaeyoon-placement-v2',
     title:'재윤 한글 놀이 레벨테스트',
     estimatedMinutes:3,
     maxQuestions:9,
