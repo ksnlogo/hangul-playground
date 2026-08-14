@@ -842,14 +842,14 @@ function taeyoonWordItem(target,pool,variant,phase){
   const choices=stableChoices(target,pool,3);
   if(variant===0) return infoItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:target,prompt:'그림과 낱말을 함께 읽어보세요.',speech:target});
   if(variant%2===0){
-    return learningItem({phase,skillId:'picture-word',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'낱말에 맞는 그림을 골라보세요.',speech:target+'. 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,entryFor(value).emoji,value)),answer:target,answerSpeech:target+'이에요.'});
+    return learningItem({phase,skillId:'picture-word',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'낱말에 맞는 그림을 골라보세요.',speech:'낱말을 읽고 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,entryFor(value).emoji,value)),answer:target,answerSpeech:target+'이에요.'});
   }
   return learningItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:'알맞은 낱말은?',prompt:'그림에 맞는 낱말을 골라보세요.',speech:'그림에 맞는 낱말을 골라보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'정답은 '+target+'예요.'});
 }
 function taeyoonSentenceItem(target,pool,variant,phase){
   const choices=stableChoices(target,pool,3);
   if(variant===0) return infoItem({phase,skillId:'read-sentence',targetId:target,emoji:sentencePictures[target],display:'',word:target,prompt:'문장을 천천히 읽어보세요.',speech:target});
-  return learningItem({phase,skillId:'picture-sentence',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'문장의 뜻에 맞는 그림을 골라보세요.',speech:target+' 문장에 맞는 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,sentencePictures[value],value)),answer:target,answerSpeech:target});
+  return learningItem({phase,skillId:'picture-sentence',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'문장의 뜻에 맞는 그림을 골라보세요.',speech:'문장을 읽고 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,sentencePictures[value],value)),answer:target,answerSpeech:target});
 }
 function taeyoonStageItem(week,target,pool,variant,phase){
   if(week.stage==='consonant') return taeyoonConsonantItem(target,variant,phase);
@@ -858,8 +858,15 @@ function taeyoonStageItem(week,target,pool,variant,phase){
   if(week.stage==='word') return taeyoonWordItem(target,pool,variant,phase);
   return taeyoonSentenceItem(target,pool,variant,phase);
 }
+function evenlySpacedTargets(targets,count){
+  if(targets.length<=count) return [...targets];
+  return Array.from({length:count},(_,index)=>{
+    const targetIndex=Math.round(index*(targets.length-1)/(count-1));
+    return targets[targetIndex];
+  });
+}
 function buildTaeyoonItems(week,session,isReview){
-  const targets=isReview?week.weeklyReview.targets:session.targets;
+  const targets=isReview?evenlySpacedTargets(week.weeklyReview.targets,5):session.targets;
   const stagePool=week.weeklyReview.targets;
   const items=[];
   if(!isReview){

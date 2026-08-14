@@ -119,11 +119,11 @@
       session('session-5','모자',['👒 모자'],['picture-find','picture-word','initial-exposure'])
     ],weeklyReview(['공','로봇','책','가방','모자'],['picture-find','picture-word'])),
     week(7,'같은 첫 글자 찾기','same-initial',[
-      session('session-1','ㄱ 소리 친구',['강아지','가방','기차','공'],['initial-exposure','same-initial']),
-      session('session-2','ㅁ 소리 친구',['모자','문','물','멜론'],['initial-exposure','same-initial']),
-      session('session-3','ㅂ 소리 친구',['버스','바나나','밥','비행기'],['initial-exposure','same-initial']),
-      session('session-4','ㅅ 소리 친구',['사과','사자','손'],['initial-exposure','same-initial']),
-      session('session-5','첫 소리 친구 모으기',['ㄱ','ㅁ','ㅂ','ㅅ'],['same-initial'])
+      session('session-1','ㄱ 첫 글자 친구',['강아지','가방','기차','공'],['initial-exposure','same-initial']),
+      session('session-2','ㅁ 첫 글자 친구',['모자','문','물','멜론'],['initial-exposure','same-initial']),
+      session('session-3','ㅂ 첫 글자 친구',['버스','바나나','밥','비행기'],['initial-exposure','same-initial']),
+      session('session-4','ㅅ 첫 글자 친구',['사과','사자','손'],['initial-exposure','same-initial']),
+      session('session-5','첫 글자 친구 모으기',['ㄱ','ㅁ','ㅂ','ㅅ'],['same-initial'])
     ],weeklyReview(['ㄱ','ㅁ','ㅂ','ㅅ'],['same-initial'])),
     week(8,'전체 종합 놀이','mixed-play',[
       session('session-1','가족과 동물',['가족','동물'],['picture-find','picture-word']),
@@ -135,7 +135,7 @@
   ];
 
   const taeyoonTest={
-    id:'taeyoon-placement-v2',
+    id:'taeyoon-placement-v3',
     title:'태윤 한글 읽기 레벨테스트',
     estimatedMinutes:5,
     maxQuestions:15,
@@ -167,24 +167,24 @@
       {
         id:'word',label:'쉬운 단어',startWeek:7,
         questions:[
-          question('t-w-1','word','🐶','강아지에 맞는 낱말을 찾아보세요.','강아지에 맞는 낱말을 찾아보세요.',[choice('강아지','강아지'),choice('나비','나비'),choice('모자','모자')],'강아지'),
-          question('t-w-2','word','🍎','사과에 맞는 낱말을 찾아보세요.','사과에 맞는 낱말을 찾아보세요.',[choice('우유','우유'),choice('사과','사과'),choice('기차','기차')],'사과'),
-          question('t-w-3','word','🚂','기차에 맞는 낱말을 찾아보세요.','기차에 맞는 낱말을 찾아보세요.',[choice('바나나','바나나'),choice('기차','기차'),choice('다리','다리')],'기차')
+          question('t-w-1','word-picture','나비','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('나비','🦋','나비'),choice('기차','🚂','기차'),choice('사과','🍎','사과')],'나비'),
+          question('t-w-2','word-picture','우유','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('오이','🥒','오이'),choice('우유','🥛','우유'),choice('모자','👒','모자')],'우유'),
+          question('t-w-3','word-picture','기차','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('바나나','🍌','바나나'),choice('나무','🌳','나무'),choice('기차','🚂','기차')],'기차')
         ]
       },
       {
         id:'sentence',label:'짧은 문장',startWeek:8,
         questions:[
-          question('t-se-1','sentence','😴👶','그림에 맞는 문장을 찾아보세요.','아기가 자는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('아기가 자요.','아기가 자요.'),choice('기차가 가요.','기차가 가요.'),choice('사과가 있어요.','사과가 있어요.')],'아기가 자요.'),
-          question('t-se-2','sentence','🚂💨','그림에 맞는 문장을 찾아보세요.','기차가 가는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('나비가 와요.','나비가 와요.'),choice('기차가 가요.','기차가 가요.'),choice('우유를 마셔요.','우유를 마셔요.')],'기차가 가요.'),
-          question('t-se-3','sentence','🦁👋','그림에 맞는 문장을 찾아보세요.','사자가 오는 그림이에요. 알맞은 문장을 찾아보세요.',[choice('나비가 와요.','나비가 와요.'),choice('아기가 자요.','아기가 자요.'),choice('사자가 와요.','사자가 와요.')],'사자가 와요.')
+          question('t-se-1','sentence-picture','아기가 자요.','문장을 읽고 알맞은 그림을 찾아보세요.','문장을 읽고 알맞은 그림을 골라보세요.',[choice('아기가 자요.','👶😴','아기가 자요.'),choice('기차가 가요.','🚂💨','기차가 가요.'),choice('우유를 마셔요.','🥛😋','우유를 마셔요.')],'아기가 자요.'),
+          question('t-se-2','sentence-picture','기차가 가요.','문장을 읽고 알맞은 그림을 찾아보세요.','문장을 읽고 알맞은 그림을 골라보세요.',[choice('나비가 와요.','🦋👋','나비가 와요.'),choice('기차가 가요.','🚂💨','기차가 가요.'),choice('우유를 마셔요.','🥛😋','우유를 마셔요.')],'기차가 가요.'),
+          question('t-se-3','sentence-picture','사자가 와요.','문장을 읽고 알맞은 그림을 찾아보세요.','문장을 읽고 알맞은 그림을 골라보세요.',[choice('나비가 와요.','🦋👋','나비가 와요.'),choice('아기가 자요.','👶😴','아기가 자요.'),choice('사자가 와요.','🦁👋','사자가 와요.')],'사자가 와요.')
         ]
       }
     ]
   };
 
   const jaeyoonTest={
-    id:'jaeyoon-placement-v2',
+    id:'jaeyoon-placement-v3',
     title:'재윤 한글 놀이 레벨테스트',
     estimatedMinutes:3,
     maxQuestions:9,
@@ -206,11 +206,11 @@
         ]
       },
       {
-        id:'initial-experience',label:'첫 글자 소리 경험',supportLevelOnFail:'initial-intro',
+        id:'initial-experience',label:'첫 글자 경험',supportLevelOnFail:'initial-intro',
         questions:[
-          question('j-i-1','initial-sound','👩 엄마','엄마와 같은 미음 소리로 시작하는 그림을 찾아보세요.','엄마와 같은 미음 소리로 시작하는 그림을 찾아보세요.',[choice('hat','👒 모자','모자'),choice('dog','🐶 강아지','강아지')],'hat'),
-          question('j-i-2','initial-sound','🚌 버스','버스와 같은 비읍 소리로 시작하는 그림을 찾아보세요.','버스와 같은 비읍 소리로 시작하는 그림을 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('banana','🍌 바나나','바나나')],'banana'),
-          question('j-i-3','initial-sound','🐶 강아지','강아지와 같은 기역 소리로 시작하는 그림을 찾아보세요.','강아지와 같은 기역 소리로 시작하는 그림을 찾아보세요.',[choice('train','🚂 기차','기차'),choice('rabbit','🐰 토끼','토끼')],'train')
+          question('j-i-1','initial-match','👒 모자','모자처럼 미음으로 시작하는 그림을 찾아보세요.','모자처럼 미음으로 시작하는 그림을 찾아보세요.',[choice('water','💧 물','물'),choice('dog','🐶 강아지','강아지')],'water'),
+          question('j-i-2','initial-match','🚌 버스','버스처럼 비읍으로 시작하는 그림을 찾아보세요.','버스처럼 비읍으로 시작하는 그림을 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('banana','🍌 바나나','바나나')],'banana'),
+          question('j-i-3','initial-match','🐶 강아지','강아지처럼 기역으로 시작하는 그림을 찾아보세요.','강아지처럼 기역으로 시작하는 그림을 찾아보세요.',[choice('train','🚂 기차','기차'),choice('rabbit','🐰 토끼','토끼')],'train')
         ]
       }
     ]
