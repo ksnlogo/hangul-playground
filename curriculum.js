@@ -135,10 +135,10 @@
   ];
 
   const taeyoonTest={
-    id:'taeyoon-placement-v3',
+    id:'taeyoon-placement-v4',
     title:'태윤 한글 읽기 레벨테스트',
     estimatedMinutes:5,
-    maxQuestions:15,
+    maxQuestions:18,
     stages:[
       {
         id:'consonant',label:'자음',startWeek:1,
@@ -179,45 +179,53 @@
           question('t-se-2','sentence-picture','기차가 가요.','문장을 읽고 알맞은 그림을 찾아보세요.','문장을 읽고 알맞은 그림을 골라보세요.',[choice('나비가 와요.','🦋👋','나비가 와요.'),choice('기차가 가요.','🚂💨','기차가 가요.'),choice('우유를 마셔요.','🥛😋','우유를 마셔요.')],'기차가 가요.'),
           question('t-se-3','sentence-picture','사자가 와요.','문장을 읽고 알맞은 그림을 찾아보세요.','문장을 읽고 알맞은 그림을 골라보세요.',[choice('나비가 와요.','🦋👋','나비가 와요.'),choice('아기가 자요.','👶😴','아기가 자요.'),choice('사자가 와요.','🦁👋','사자가 와요.')],'사자가 와요.')
         ]
+      },
+      {
+        id:'final-consonant',label:'받침 낱말 심화 진단',diagnosticOnly:true,
+        questions:[
+          question('t-fc-1','word-picture','눈','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('눈','👁️','눈'),choice('문','🚪','문'),choice('공','⚽','공')],'눈'),
+          question('t-fc-2','word-picture','문','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('달','🌙','달'),choice('문','🚪','문'),choice('눈','👁️','눈')],'문'),
+          question('t-fc-3','word-picture','공','낱말을 읽고 알맞은 그림을 찾아보세요.','낱말을 읽고 알맞은 그림을 골라보세요.',[choice('공','⚽','공'),choice('달','🌙','달'),choice('문','🚪','문')],'공')
+        ]
       }
     ]
   };
 
   const jaeyoonTest={
-    id:'jaeyoon-placement-v3',
+    id:'jaeyoon-placement-v4',
     title:'재윤 한글 놀이 레벨테스트',
     estimatedMinutes:3,
     maxQuestions:9,
     stages:[
       {
-        id:'picture-find',label:'그림 찾기',supportLevelOnFail:'picture-first',
+        id:'picture-find',label:'소리 듣고 그림 찾기',supportLevelOnFail:'picture-first',
         questions:[
-          question('j-p-1','picture','👩','엄마를 찾아보세요.','엄마를 찾아보세요.',[choice('mom','👩 엄마','엄마'),choice('dog','🐶 강아지','강아지')],'mom'),
-          question('j-p-2','picture','🐱','고양이를 찾아보세요.','고양이를 찾아보세요.',[choice('cat','🐱 고양이','고양이'),choice('bus','🚌 버스','버스')],'cat'),
-          question('j-p-3','picture','🍎','사과를 찾아보세요.','사과를 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('ball','⚽ 공','공')],'apple')
+          question('j-p-1','sound-picture','🔊','소리를 듣고 엄마 그림을 찾아보세요.','엄마. 엄마 그림을 찾아보세요.',[choice('mom','👩','엄마'),choice('dog','🐶','강아지'),choice('bus','🚌','버스')],'mom'),
+          question('j-p-2','sound-picture','🔊','소리를 듣고 고양이 그림을 찾아보세요.','고양이. 고양이 그림을 찾아보세요.',[choice('cat','🐱','고양이'),choice('apple','🍎','사과'),choice('ball','⚽','공')],'cat'),
+          question('j-p-3','sound-picture','🔊','소리를 듣고 사과 그림을 찾아보세요.','사과. 사과 그림을 찾아보세요.',[choice('rabbit','🐰','토끼'),choice('apple','🍎','사과'),choice('car','🚗','자동차')],'apple')
         ]
       },
       {
-        id:'sound-link',label:'그림·소리·단어 모양 연결',supportLevelOnFail:'sound-link',
+        id:'sound-link',label:'소리와 첫 글자 연결',supportLevelOnFail:'sound-link',
         questions:[
-          question('j-l-1','picture-word','🚗','자동차 그림과 같은 카드를 찾아보세요.','자동차 그림과 같은 카드를 찾아보세요.',[choice('car','🚗 자동차','자동차'),choice('bread','🍞 빵','빵')],'car'),
-          question('j-l-2','picture-word','🐰','토끼 그림과 같은 카드를 찾아보세요.','토끼 그림과 같은 카드를 찾아보세요.',[choice('milk','🥛 우유','우유'),choice('rabbit','🐰 토끼','토끼')],'rabbit'),
-          question('j-l-3','picture-word','🤖','로봇 그림과 같은 카드를 찾아보세요.','로봇 그림과 같은 카드를 찾아보세요.',[choice('robot','🤖 로봇','로봇'),choice('banana','🍌 바나나','바나나')],'robot')
+          question('j-l-1','sound-initial','🔊','기차를 듣고 첫 글자를 찾아보세요.','기차. 기차의 첫 글자를 찾아보세요.',[choice('ㄱ','ㄱ','기역'),choice('ㅂ','ㅂ','비읍'),choice('ㅅ','ㅅ','시옷')],'ㄱ'),
+          question('j-l-2','sound-initial','🔊','모자를 듣고 첫 글자를 찾아보세요.','모자. 모자의 첫 글자를 찾아보세요.',[choice('ㄴ','ㄴ','니은'),choice('ㅁ','ㅁ','미음'),choice('ㄷ','ㄷ','디귿')],'ㅁ'),
+          question('j-l-3','sound-initial','🔊','사자를 듣고 첫 글자를 찾아보세요.','사자. 사자의 첫 글자를 찾아보세요.',[choice('ㅈ','ㅈ','지읒'),choice('ㅅ','ㅅ','시옷'),choice('ㄱ','ㄱ','기역')],'ㅅ')
         ]
       },
       {
-        id:'initial-experience',label:'첫 글자 경험',supportLevelOnFail:'initial-intro',
+        id:'initial-experience',label:'같은 첫 글자 찾기',supportLevelOnFail:'initial-intro',
         questions:[
-          question('j-i-1','initial-match','👒 모자','모자처럼 미음으로 시작하는 그림을 찾아보세요.','모자처럼 미음으로 시작하는 그림을 찾아보세요.',[choice('water','💧 물','물'),choice('dog','🐶 강아지','강아지')],'water'),
-          question('j-i-2','initial-match','🚌 버스','버스처럼 비읍으로 시작하는 그림을 찾아보세요.','버스처럼 비읍으로 시작하는 그림을 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('banana','🍌 바나나','바나나')],'banana'),
-          question('j-i-3','initial-match','🐶 강아지','강아지처럼 기역으로 시작하는 그림을 찾아보세요.','강아지처럼 기역으로 시작하는 그림을 찾아보세요.',[choice('train','🚂 기차','기차'),choice('rabbit','🐰 토끼','토끼')],'train')
+          question('j-i-1','same-initial','👒 모자','모자와 같은 첫 글자로 시작하는 그림을 찾아보세요.','모자와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('water','💧 물','물'),choice('dog','🐶 강아지','강아지'),choice('bread','🍞 빵','빵')],'water'),
+          question('j-i-2','same-initial','🚌 버스','버스와 같은 첫 글자로 시작하는 그림을 찾아보세요.','버스와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('banana','🍌 바나나','바나나'),choice('hat','👒 모자','모자')],'banana'),
+          question('j-i-3','same-initial','🐶 강아지','강아지와 같은 첫 글자로 시작하는 그림을 찾아보세요.','강아지와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('train','🚂 기차','기차'),choice('rabbit','🐰 토끼','토끼'),choice('lion','🦁 사자','사자')],'train')
         ]
       }
     ]
   };
 
   window.HANGUL_CURRICULUM={
-    version:'0.5-B',
+    version:'0.5-C',
     letterSpeech:{
       'ㄱ':'기역','ㄴ':'니은','ㄷ':'디귿','ㄹ':'리을','ㅁ':'미음','ㅂ':'비읍','ㅅ':'시옷',
       'ㅇ':'이응','ㅈ':'지읒','ㅊ':'치읓','ㅋ':'키읔','ㅌ':'티읕','ㅍ':'피읖','ㅎ':'히읗',

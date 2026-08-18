@@ -18,6 +18,9 @@ let state={
 };
 
 let placementUi={waiting:false,finished:false};
+let drawingUi={
+  tool:'pen',drawing:false,lastPoint:null,inkDistance:0,activeItemId:null
+};
 
 const STORAGE_KEY='hangulPlaygroundV05';
 const V04_STORAGE_KEY='hangulPlaygroundV04';
@@ -177,6 +180,14 @@ function normalizePlacementResult(result,child){
   const supportLevel=child==='younger'
     ? (allowedSupportLevels.includes(result.supportLevel)?result.supportLevel:'picture-first')
     : null;
+  const diagnostic=result.advancedDiagnostics && result.advancedDiagnostics.finalConsonant;
+  const finalConsonant=child==='older' && isPlainObject(diagnostic)
+    ? {
+        correct:safeCount(diagnostic.correct,3),
+        asked:safeCount(diagnostic.asked,3),
+        passed:Boolean(diagnostic.passed)
+      }
+    : null;
   return {
     kind,
     testId:typeof result.testId==='string'?result.testId:null,
@@ -187,8 +198,9 @@ function normalizePlacementResult(result,child){
     failedStageId:typeof result.failedStageId==='string'?result.failedStageId:null,
     allPassed:Boolean(result.allPassed),
     stageScores:Array.isArray(result.stageScores)
-      ? result.stageScores.map(value=>safeObject(value)).filter(Boolean).slice(0,5)
-      : []
+      ? result.stageScores.map(value=>safeObject(value)).filter(Boolean).slice(0,CURRICULUM.levelTests[child].stages.length)
+      : [],
+    advancedDiagnostics:{finalConsonant}
   };
 }
 function normalizePlacement(placement,child){
@@ -507,7 +519,7 @@ function showPlacementIntro(child,profile){
   const inProgress=profile.placement.status==='in-progress';
   document.getElementById('placementIntroTitle').textContent=childName(child)+' 레벨테스트';
   document.getElementById('placementIntroText').textContent=isOlder
-    ? '자음부터 짧은 문장까지 차례로 확인해 알맞은 시작 주차를 추천해요. 약 5분 안에 끝나요.'
+    ? '자음부터 짧은 문장까지 차례로 확인하고, 마지막에는 받침 낱말을 심화 진단해요. 받침 결과는 기본 8주 배치에 영향을 주지 않아요.'
     : '그림과 소리를 이용한 놀이로 어떤 도움이 편한지 확인해요. 글자를 읽어야 풀 수 있는 문제는 없어요.';
   document.getElementById('placementResumeNote').hidden=!inProgress;
   document.getElementById('placementStartButton').textContent=inProgress?'이어서 하기':'레벨테스트 시작';
@@ -600,7 +612,8 @@ function finishPlacement(profile,attempt,test,details){
     supportLevel:details.supportLevel || null,
     failedStageId:details.failedStageId || null,
     allPassed:Boolean(details.allPassed),
-    stageScores:stageScores(test,attempt)
+    stageScores:stageScores(test,attempt),
+    advancedDiagnostics:details.advancedDiagnostics || {finalConsonant:null}
   };
   profile.placement.status='completed';
   profile.placement.testVersion=test.id;
@@ -618,15 +631,21 @@ function advanceOlderPlacement(context){
   if(stageAnswers.length===1){attempt.questionIndex=1;return null;}
   if(stageAnswers.length===2 && correct===1){attempt.questionIndex=2;return null;}
   const passed=correct>=2;
+  if(stage.diagnosticOnly){
+    return finishPlacement(profile,attempt,test,{
+      startWeek:8,
+      allPassed:true,
+      advancedDiagnostics:{
+        finalConsonant:{correct,asked:stageAnswers.length,passed}
+      }
+    });
+  }
   if(!passed){
     return finishPlacement(profile,attempt,test,{
       startWeek:stage.startWeek,
       failedStageId:stage.id,
       allPassed:false
     });
-  }
-  if(attempt.stageIndex===test.stages.length-1){
-    return finishPlacement(profile,attempt,test,{startWeek:8,allPassed:true});
   }
   attempt.stageIndex++;
   attempt.questionIndex=0;
@@ -748,6 +767,10 @@ function showPlacementResult(result){
     detail=result.allPassed
       ? '모든 단계를 통과했어요. 8주차 짧은 문장 단계에서 시작합니다.'
       : '처음 통과하지 못한 단계에 맞춰 '+result.startWeek+'주차를 추천합니다.';
+    const diagnostic=result.advancedDiagnostics && result.advancedDiagnostics.finalConsonant;
+    if(diagnostic && diagnostic.asked){
+      detail+=' 받침 낱말 심화 진단은 '+diagnostic.correct+' / '+diagnostic.asked+'개를 맞혔으며, 기본 8주 배치에는 영향을 주지 않아요.';
+    }
   }else if(!skipped){
     headline=supportLevelLabel(result.supportLevel);
     detail='재윤은 테스트 결과와 관계없이 1주차부터 시작합니다.';
@@ -766,7 +789,7 @@ const pictureBank={
   '자동차':'🚗','버스':'🚌','기차':'🚂','비행기':'✈️','배':'🚢',
   '밥':'🍚','사과':'🍎','바나나':'🍌','우유':'🥛','빵':'🍞','오이':'🥒','멜론':'🍈',
   '눈':'👁️','코':'👃','입':'👄','손':'✋','발':'🦶','다리':'🦵',
-  '공':'⚽','로봇':'🤖','책':'📚','가방':'🎒','모자':'👒','문':'🚪','물':'💧','비누':'🧼','나무':'🌳','바다':'🌊','포도':'🍇','하마':'🦛',
+  '공':'⚽','로봇':'🤖','책':'📚','가방':'🎒','모자':'👒','문':'🚪','물':'💧','달':'🌙','비누':'🧼','나무':'🌳','바다':'🌊','포도':'🍇','하마':'🦛',
   '가족':'👨‍👩‍👦','동물':'🐾','탈것':'🚙','음식':'🍽️','몸':'🙋','생활물건':'🎒','장난감':'🧸','첫 글자':'🔤'
 };
 const sentencePictures={
@@ -806,9 +829,21 @@ function learningItem(config){
 function infoItem(config){
   return learningItem(Object.assign({type:'info',choices:[itemChoice('continue','알겠어요 👍','알겠어요')]},config));
 }
-function taeyoonConsonantItem(target,variant,phase){
+function speakItem(config){
+  return learningItem(Object.assign({type:'speak'},config));
+}
+function writingItem(target,mode,phase){
+  const isTrace=mode==='trace';
+  return learningItem({
+    type:'drawing',phase,skillId:isTrace?'trace-writing':'copy-writing',targetId:target,
+    writingTarget:target,writingMode:mode,display:'',word:isTrace?'따라쓰기':'보고쓰기',
+    prompt:isTrace?'연한 글자를 따라 천천히 써보세요.':'위 글자를 보고 빈 곳에 써보세요.',
+    speech:target+'. '+(isTrace?'연한 글자를 따라 써보세요.':'글자를 보고 써보세요.')
+  });
+}
+function taeyoonConsonantItem(target,variant,phase,choiceCount=3){
   const example=entryFor(consonantExamples[target] || '기차');
-  const choices=stableChoices(target,consonantOrder,3).map(value=>itemChoice(value,value,spokenLetter(value)));
+  const choices=stableChoices(target,consonantOrder,choiceCount).map(value=>itemChoice(value,value,spokenLetter(value)));
   if(variant===0){
     const note=target==='ㅇ'?'이응은 첫소리가 없는 낱말의 첫 글자에도 와요.':spokenLetter(target)+'을 만나봐요.';
     return infoItem({phase,skillId:'consonant-recognize',targetId:target,display:target,word:spokenLetter(target),prompt:note,speech:spokenLetter(target)+'. '+note});
@@ -816,12 +851,21 @@ function taeyoonConsonantItem(target,variant,phase){
   if(variant===2){
     return learningItem({phase,skillId:'initial-letter',targetId:target,emoji:example.emoji,display:'?',word:example.word,prompt:example.word+'의 첫 글자를 찾아보세요.',speech:example.word+'의 첫 글자를 찾아보세요.',choices,answer:target,answerSpeech:example.word+'의 첫 글자는 '+spokenLetter(target)+'이에요.'});
   }
-  return learningItem({phase,skillId:variant===3?'consonant-discriminate':'consonant-recognize',targetId:target,display:variant===1?'🔊':target,word:'',prompt:spokenLetter(target)+'을 찾아보세요.',speech:spokenLetter(target)+'을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'이에요.'});
+  if(variant===3){
+    return learningItem({phase,skillId:'same-letter',targetId:target,display:target,prompt:'화면과 같은 글자를 찾아보세요.',speech:'화면과 같은 글자를 찾아보세요.',choices,answer:target,answerSpeech:'같은 글자는 '+spokenLetter(target)+'이에요.'});
+  }
+  if(variant===4){
+    return speakItem({phase,skillId:'read-consonant',targetId:target,display:target,word:'소리 내어 말하기',prompt:'글자 이름을 소리 내어 말해보세요.',speech:'글자 이름을 말해보세요.'});
+  }
+  return learningItem({phase,skillId:variant===5?'consonant-discriminate':'consonant-recognize',targetId:target,display:variant===1?'🔊':target,word:'',prompt:spokenLetter(target)+'을 찾아보세요.',speech:spokenLetter(target)+'을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'이에요.'});
 }
-function taeyoonVowelItem(target,variant,phase){
-  const choices=stableChoices(target,vowelOrder,3).map(value=>itemChoice(value,value,spokenLetter(value)));
+function taeyoonVowelItem(target,variant,phase,choiceCount=3){
+  const choices=stableChoices(target,vowelOrder,choiceCount).map(value=>itemChoice(value,value,spokenLetter(value)));
   if(variant===0) return infoItem({phase,skillId:'vowel-recognize',targetId:target,display:target,word:spokenLetter(target),prompt:spokenLetter(target)+' 소리의 모음을 만나봐요.',speech:spokenLetter(target)+'. 모음 '+target});
-  return learningItem({phase,skillId:variant===3?'vowel-discriminate':'vowel-sound-match',targetId:target,display:variant===1?'🔊':target,prompt:spokenLetter(target)+' 소리의 모음을 찾아보세요.',speech:spokenLetter(target)+' 소리의 모음을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'예요.'});
+  if(variant===2) return learningItem({phase,skillId:'same-letter',targetId:target,display:target,prompt:'화면과 같은 모음을 찾아보세요.',speech:'화면과 같은 모음을 찾아보세요.',choices,answer:target,answerSpeech:'같은 모음은 '+spokenLetter(target)+'예요.'});
+  if(variant===3) return learningItem({phase,skillId:'vowel-discriminate',targetId:target,display:target,prompt:'다른 모음과 구별해 찾아보세요.',speech:'화면의 모음을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'예요.'});
+  if(variant===4) return speakItem({phase,skillId:'read-vowel',targetId:target,display:target,word:'소리 내어 말하기',prompt:'모음 소리를 내어 말해보세요.',speech:'모음 소리를 말해보세요.'});
+  return learningItem({phase,skillId:'vowel-sound-match',targetId:target,display:'🔊',prompt:spokenLetter(target)+' 소리의 모음을 찾아보세요.',speech:spokenLetter(target)+' 소리의 모음을 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+spokenLetter(target)+'예요.'});
 }
 function syllableParts(syllable){
   const code=String(syllable).charCodeAt(0)-0xAC00;
@@ -830,33 +874,78 @@ function syllableParts(syllable){
   const vowels=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
   return {initial:initials[Math.floor(code/588)],vowel:vowels[Math.floor((code%588)/28)]};
 }
-function taeyoonSyllableItem(target,pool,variant,phase){
+function syllableChoicePool(pool){
+  return [...new Set(pool.filter(value=>syllableParts(value)))];
+}
+function taeyoonSyllableItem(target,pool,variant,phase,choiceCount=3){
   const parts=syllableParts(target);
-  const choices=stableChoices(target,pool,3).map(value=>itemChoice(value,value,value));
+  const choices=stableChoices(target,syllableChoicePool(pool),choiceCount).map(value=>itemChoice(value,value,value));
   const display=parts?parts.initial+' + '+parts.vowel:'글자 만들기';
   if(variant===0) return infoItem({phase,skillId:'combine-exposure',targetId:target,display,word:target,prompt:'두 글자 조각을 합쳐 보세요.',speech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'가 만나서 '+target});
-  return learningItem({phase,skillId:variant===3?'read-syllable':'combine',targetId:target,display,word:'무슨 글자가 될까요?',prompt:'자음과 모음을 합쳐 보세요.',speech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'를 합쳐 보세요.',choices,answer:target,answerSpeech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'가 만나서 '+target});
+  if(variant===2){
+    const partChoices=stableChoices(target,pool,choiceCount).map(value=>{
+      const valueParts=syllableParts(value);
+      return itemChoice(value,(valueParts?valueParts.initial+' + '+valueParts.vowel:value),value);
+    });
+    return learningItem({phase,skillId:'split-syllable',targetId:target,display:target,word:'어떻게 만든 글자일까요?',prompt:'글자를 만든 자음과 모음을 골라보세요.',speech:'글자를 보고 알맞은 자음과 모음을 골라보세요.',choices:partChoices,answer:target,answerSpeech:target+'는 '+spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'로 만들어요.'});
+  }
+  if(variant===3){
+    const vowelChoices=stableChoices(parts.vowel,vowelOrder,choiceCount).map(value=>itemChoice(value,value,spokenLetter(value)));
+    return learningItem({phase,skillId:'fill-vowel',targetId:target,display:parts.initial+' + □ = '+target,word:'빈 모음은?',prompt:'빈칸에 들어갈 모음을 찾아보세요.',speech:'빈칸에 들어갈 모음을 찾아보세요.',choices:vowelChoices,answer:parts.vowel,answerSpeech:'빈칸에는 '+spokenLetter(parts.vowel)+'가 들어가요.'});
+  }
+  if(variant===4) return learningItem({phase,skillId:'same-syllable',targetId:target,display:target,word:'같은 글자는?',prompt:'같은 음절을 찾아보세요.',speech:'화면과 같은 글자를 찾아보세요.',choices,answer:target,answerSpeech:'같은 글자는 '+target+'예요.'});
+  if(variant===5) return learningItem({phase,skillId:'sound-syllable',targetId:target,display:'🔊',word:'들은 글자는?',prompt:'소리를 듣고 음절을 찾아보세요.',speech:target+'. 들은 글자를 찾아보세요.',choices,answer:target,answerSpeech:'정답은 '+target+'예요.'});
+  return learningItem({phase,skillId:'combine',targetId:target,display,word:'무슨 글자가 될까요?',prompt:'자음과 모음을 합쳐 보세요.',speech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'를 합쳐 보세요.',choices,answer:target,answerSpeech:spokenLetter(parts.initial)+'과 '+spokenLetter(parts.vowel)+'가 만나서 '+target});
 }
-function taeyoonWordItem(target,pool,variant,phase){
+function wordSyllables(word){return Array.from(String(word).replace(/[.?!]/g,''));}
+function wordSyllablePool(pool){
+  return [...new Set(pool.flatMap(wordSyllables).concat(['가','나','다','라','마','바','사','아','자']))];
+}
+function taeyoonWordItem(target,pool,variant,phase,choiceCount=3){
   const entry=entryFor(target);
-  const choices=stableChoices(target,pool,3);
+  const choices=stableChoices(target,pool,choiceCount);
   if(variant===0) return infoItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:target,prompt:'그림과 낱말을 함께 읽어보세요.',speech:target});
-  if(variant%2===0){
+  if(variant===1){
     return learningItem({phase,skillId:'picture-word',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'낱말에 맞는 그림을 골라보세요.',speech:'낱말을 읽고 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,entryFor(value).emoji,value)),answer:target,answerSpeech:target+'이에요.'});
   }
-  return learningItem({phase,skillId:'read-word',targetId:target,emoji:entry.emoji,display:'',word:'알맞은 낱말은?',prompt:'그림에 맞는 낱말을 골라보세요.',speech:'그림에 맞는 낱말을 골라보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'정답은 '+target+'예요.'});
+  if(variant===2) return learningItem({phase,skillId:'picture-to-word',targetId:target,emoji:entry.emoji,display:'',word:'알맞은 낱말은?',prompt:'그림에 맞는 낱말을 골라보세요.',speech:'그림에 맞는 낱말을 골라보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'정답은 '+target+'예요.'});
+  const syllables=wordSyllables(target);
+  const syllablePool=wordSyllablePool(pool);
+  if(variant===3 || variant===4){
+    const position=variant===3?0:Math.floor((syllables.length-1)/2);
+    const answer=syllables[position];
+    return learningItem({phase,skillId:variant===3?'word-first-syllable':'word-middle-syllable',targetId:target,display:target,word:variant===3?'첫 글자는?':'가운데 글자는?',prompt:'낱말을 읽고 알맞은 글자를 찾아보세요.',speech:'낱말을 읽고 알맞은 글자를 찾아보세요.',choices:stableChoices(answer,syllablePool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:target+'에서 찾은 글자는 '+answer+'예요.'});
+  }
+  if(variant===5){
+    const position=syllables.length>2?1:syllables.length-1;
+    const answer=syllables[position];
+    const display=syllables.map((value,index)=>index===position?'□':value).join('');
+    return learningItem({phase,skillId:'fill-word-syllable',targetId:target,display,word:'빈 글자는?',prompt:'빈칸에 들어갈 글자를 찾아보세요.',speech:'낱말의 빈칸에 들어갈 글자를 찾아보세요.',choices:stableChoices(answer,syllablePool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:'빈칸에는 '+answer+'. '+target+'이에요.'});
+  }
+  if(variant===6){
+    const answer=syllables[Math.min(1,syllables.length-1)];
+    return learningItem({phase,skillId:'find-word-syllable',targetId:target,display:target,word:'낱말 속 글자는?',prompt:'이 낱말에 들어 있는 글자를 찾아보세요.',speech:'낱말을 읽고 들어 있는 글자를 찾아보세요.',choices:stableChoices(answer,syllablePool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:target+'에는 '+answer+'가 들어 있어요.'});
+  }
+  return speakItem({phase,skillId:'read-word-no-picture',targetId:target,display:target,word:'그림 없이 읽기',prompt:'그림 도움 없이 낱말을 소리 내어 읽어보세요.',speech:'화면의 낱말을 소리 내어 읽어보세요.'});
 }
-function taeyoonSentenceItem(target,pool,variant,phase){
-  const choices=stableChoices(target,pool,3);
+function sentenceWords(sentence){return String(sentence).replace(/[.?!]/g,'').split(/\s+/).filter(Boolean);}
+function taeyoonSentenceItem(target,pool,variant,phase,choiceCount=3){
+  const choices=stableChoices(target,pool,choiceCount);
   if(variant===0) return infoItem({phase,skillId:'read-sentence',targetId:target,emoji:sentencePictures[target],display:'',word:target,prompt:'문장을 천천히 읽어보세요.',speech:target});
-  return learningItem({phase,skillId:'picture-sentence',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'문장의 뜻에 맞는 그림을 골라보세요.',speech:'문장을 읽고 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,sentencePictures[value],value)),answer:target,answerSpeech:target});
-}
-function taeyoonStageItem(week,target,pool,variant,phase){
-  if(week.stage==='consonant') return taeyoonConsonantItem(target,variant,phase);
-  if(week.stage==='vowel') return taeyoonVowelItem(target,variant,phase);
-  if(week.stage==='syllable') return taeyoonSyllableItem(target,pool,variant,phase);
-  if(week.stage==='word') return taeyoonWordItem(target,pool,variant,phase);
-  return taeyoonSentenceItem(target,pool,variant,phase);
+  if(variant===1) return learningItem({phase,skillId:'sentence-to-picture',targetId:target,display:target,word:'어떤 그림일까요?',prompt:'문장의 뜻에 맞는 그림을 골라보세요.',speech:'문장을 읽고 알맞은 그림을 골라보세요.',choices:choices.map(value=>itemChoice(value,sentencePictures[value],value)),answer:target,answerSpeech:target});
+  if(variant===2) return learningItem({phase,skillId:'picture-to-sentence',targetId:target,emoji:sentencePictures[target],display:'',word:'어떤 문장일까요?',prompt:'그림의 뜻에 맞는 문장을 골라보세요.',speech:'그림을 보고 알맞은 문장을 골라보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:target});
+  const words=sentenceWords(target);
+  const wordPool=[...new Set(pool.flatMap(sentenceWords))];
+  if(variant===3){
+    const answer=words[0];
+    const display=target.replace(answer,'□');
+    return learningItem({phase,skillId:'fill-sentence-word',targetId:target,display,word:'빈 낱말은?',prompt:'문장을 읽고 빈칸에 들어갈 낱말을 찾아보세요.',speech:'문장을 읽고 빈칸에 들어갈 낱말을 찾아보세요.',choices:stableChoices(answer,wordPool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:'빈칸에는 '+answer+'. '+target});
+  }
+  if(variant===4){
+    const answer=words[0];
+    return learningItem({phase,skillId:'sentence-word-meaning',targetId:target,display:target,word:'문장 속 낱말은?',prompt:'문장에 들어 있는 낱말을 찾아보세요.',speech:'문장을 읽고 문장에 들어 있는 낱말을 찾아보세요.',choices:stableChoices(answer,wordPool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:answer+'가 들어 있어요. '+target});
+  }
+  return speakItem({phase,skillId:'read-sentence-no-tts',targetId:target,display:target,word:'혼자 문장 읽기',prompt:'그림과 소리 도움 없이 문장을 읽어보세요.',speech:'화면의 문장을 혼자 읽어보세요.'});
 }
 function evenlySpacedTargets(targets,count){
   if(targets.length<=count) return [...targets];
@@ -869,19 +958,61 @@ function buildTaeyoonItems(week,session,isReview){
   const targets=isReview?evenlySpacedTargets(week.weeklyReview.targets,5):session.targets;
   const stagePool=week.weeklyReview.targets;
   const items=[];
-  if(!isReview){
-    const sessionIndex=week.sessions.indexOf(session);
-    if(sessionIndex>0){
-      const previous=week.sessions[sessionIndex-1];
-      const previousTarget=previous.targets[previous.targets.length-1];
-      items.push(taeyoonStageItem(week,previousTarget,stagePool,2,'review'));
+  const phase=isReview?'weekreview':'new';
+  if(week.stage==='consonant' || week.stage==='vowel'){
+    const maker=week.stage==='consonant'?taeyoonConsonantItem:taeyoonVowelItem;
+    const order=week.stage==='consonant'?consonantOrder:vowelOrder;
+    const primary=targets[0];
+    if(!isReview){
+      const sessionIndex=week.sessions.indexOf(session);
+      if(sessionIndex>0){
+        const previous=week.sessions[sessionIndex-1];
+        items.push(maker(previous.targets[previous.targets.length-1],2,'review',3));
+      }
+      items.push(maker(primary,0,phase,3));
     }
-    items.push(taeyoonStageItem(week,targets[0],stagePool,0,'new'));
-  }
-  const wanted=isReview?5:5-items.length;
-  for(let index=0;index<wanted;index++){
-    const target=targets[index%targets.length];
-    items.push(taeyoonStageItem(week,target,stagePool,(index%3)+1,isReview?'weekreview':'new'));
+    const variants=isReview?[1,2,3,5,1,3,4]:[1,2,3,5,1,4];
+    variants.forEach((variant,index)=>{
+      const target=targets[index%targets.length] || primary;
+      items.push(maker(target,variant,phase,index===3?4:3));
+    });
+    while(items.length<8) items.push(maker(primary,items.length%2?2:5,phase,4));
+    items.push(writingItem(primary,'trace',phase));
+  }else if(week.stage==='syllable'){
+    const selected=Array.from({length:6},(_,index)=>targets[index%targets.length]);
+    if(!isReview) items.push(taeyoonSyllableItem(selected[0],stagePool,0,phase));
+    items.push(taeyoonSyllableItem(selected[0],stagePool,1,phase,3));
+    items.push(taeyoonSyllableItem(selected[1],stagePool,2,phase,3));
+    items.push(taeyoonSyllableItem(selected[2],stagePool,3,phase,4));
+    items.push(taeyoonSyllableItem(selected[3],stagePool,4,phase,4));
+    items.push(taeyoonSyllableItem(selected[4],stagePool,5,phase,3));
+    items.push(taeyoonSyllableItem(selected[5],stagePool,1,phase,4));
+    items.push(speakItem({phase,skillId:'read-syllable-no-help',targetId:selected[0],display:selected[0],word:'혼자 음절 읽기',prompt:'글자를 보고 소리 내어 읽어보세요.',speech:'화면의 글자를 소리 내어 읽어보세요.'}));
+    items.push(writingItem(selected[0],'trace',phase));
+    items.push(writingItem(selected[1],'copy',phase));
+  }else if(week.stage==='word'){
+    const selected=Array.from({length:8},(_,index)=>targets[index%targets.length]);
+    items.push(taeyoonWordItem(selected[0],stagePool,7,phase));
+    items.push(taeyoonWordItem(selected[1],stagePool,1,phase,3));
+    items.push(taeyoonWordItem(selected[2],stagePool,2,phase,4));
+    items.push(taeyoonWordItem(selected[3],stagePool,3,phase,4));
+    items.push(taeyoonWordItem(selected[4],stagePool,4,phase,4));
+    items.push(taeyoonWordItem(selected[5],stagePool,5,phase,4));
+    items.push(taeyoonWordItem(selected[6],stagePool,6,phase,4));
+    items.push(taeyoonWordItem(selected[7],stagePool,7,phase));
+    items.push(writingItem(selected[0],'copy',phase));
+  }else{
+    const selected=Array.from({length:8},(_,index)=>targets[index%targets.length]);
+    items.push(taeyoonSentenceItem(selected[0],stagePool,5,phase));
+    items.push(taeyoonSentenceItem(selected[1],stagePool,1,phase,3));
+    items.push(taeyoonSentenceItem(selected[2],stagePool,2,phase,3));
+    items.push(taeyoonSentenceItem(selected[3],stagePool,3,phase,4));
+    items.push(taeyoonSentenceItem(selected[4],stagePool,4,phase,4));
+    items.push(taeyoonSentenceItem(selected[5],stagePool,1,phase,4));
+    items.push(taeyoonSentenceItem(selected[6],stagePool,3,phase,3));
+    items.push(taeyoonSentenceItem(selected[7],stagePool,5,phase));
+    const phrase=sentenceWords(selected[0])[0] || selected[0];
+    items.push(writingItem(phrase,'copy',phase));
   }
   return items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
 }
@@ -894,15 +1025,14 @@ function youngerEntriesFor(targets){
     return entryFor(target);
   });
 }
-function youngerDistractor(answer,initialDifferent=false){
-  return allYoungerEntries().find(entry=>entry.word!==answer.word && (!initialDifferent || entry.initial!==answer.initial)) || entryFor('기차');
+function youngerChoiceEntries(answer,count,requireDifferentInitial=false){
+  const pool=allYoungerEntries().filter(entry=>entry.word!==answer.word && (!requireDifferentInitial || entry.initial!==answer.initial));
+  const words=stableChoices(answer.word,pool.map(entry=>entry.word),count);
+  return words.map(word=>word===answer.word?answer:pool.find(entry=>entry.word===word)).filter(Boolean);
 }
-function youngerPair(answer,other){
-  return stableChoices(answer.word,[answer.word,other.word],2).map(word=>word===answer.word?answer:other);
-}
-function youngerPictureFind(entry,phase){
-  const other=youngerDistractor(entry,true);
-  return learningItem({phase,skillId:'picture-find',targetId:entry.word,display:'🔊',word:'어디에 있을까요?',prompt:entry.word+'를 찾아보세요.',speech:entry.word+'를 찾아보세요.',choices:youngerPair(entry,other).map(value=>itemChoice(value.word,value.emoji+' '+value.word,value.word)),answer:entry.word,answerSpeech:entry.word+'를 찾았어요!'});
+function youngerPictureFind(entry,phase,count){
+  const options=youngerChoiceEntries(entry,count,true);
+  return learningItem({phase,skillId:'sound-picture',targetId:entry.word,display:'🔊',word:'들은 낱말은?',prompt:'소리를 듣고 알맞은 그림을 찾아보세요.',speech:entry.word+'. 알맞은 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:entry.word,answerSpeech:entry.word+'를 찾았어요!'});
 }
 function youngerPictureWord(entry,phase){
   return infoItem({phase,skillId:'picture-word',targetId:entry.word,emoji:entry.emoji,display:'',word:entry.word,prompt:'그림, 소리, 낱말 모양을 함께 만나봐요.',speech:entry.word+'. 같이 말해볼까요?'});
@@ -911,46 +1041,48 @@ function youngerInitialExposure(entry,phase){
   const initial=entry.initial || 'ㄱ';
   return infoItem({phase,skillId:'initial-exposure',targetId:entry.word,emoji:entry.emoji,display:initial,word:entry.word,prompt:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.',speech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
 }
-function youngerInitialChoice(entry,phase){
+function youngerInitialChoice(entry,phase,count,audioOnly=false){
+  const initial=entry.initial || 'ㄱ';
+  return learningItem({phase,skillId:audioOnly?'sound-to-initial':'picture-to-initial',targetId:entry.word,emoji:audioOnly?'':entry.emoji,display:audioOnly?'🔊':'?',word:'첫 글자는?',prompt:audioOnly?'소리를 듣고 첫 글자를 찾아보세요.':'그림 이름의 첫 글자를 찾아보세요.',speech:audioOnly?entry.word+'. 첫 글자를 찾아보세요.':'그림 이름의 첫 글자를 찾아보세요.',choices:stableChoices(initial,consonantOrder,count).map(value=>itemChoice(value,value,spokenLetter(value))),answer:initial,answerSpeech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
+}
+function youngerSameInitial(entry,entries,phase,count){
+  const match=entries.find(value=>value.word!==entry.word && value.initial===entry.initial) || allYoungerEntries().find(value=>value.word!==entry.word && value.initial===entry.initial) || entry;
+  const options=youngerChoiceEntries(match,count,true);
+  return learningItem({phase,skillId:'same-initial',targetId:entry.initial,emoji:entry.emoji,display:entry.initial,word:entry.word,prompt:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',speech:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:match.word,answerSpeech:entry.word+'와 '+match.word+'는 같은 첫 글자로 시작해요.'});
+}
+function youngerDifferentLetter(entry,phase,count){
   const initial=entry.initial || 'ㄱ';
   const other=consonantOrder.find(value=>value!==initial) || 'ㄴ';
-  return learningItem({phase,skillId:'initial-choice',targetId:entry.word,emoji:entry.emoji,display:'?',word:entry.word,prompt:'첫 글자를 같이 찾아볼까요?',speech:entry.word+'의 첫 글자를 같이 찾아볼까요?',choices:stableChoices(initial,[initial,other],2).map(value=>itemChoice(value,value,spokenLetter(value))),answer:initial,answerSpeech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
-}
-function youngerSameInitial(entry,entries,phase){
-  const match=entries.find(value=>value.word!==entry.word && value.initial===entry.initial) || allYoungerEntries().find(value=>value.word!==entry.word && value.initial===entry.initial) || entry;
-  const other=youngerDistractor(entry,true);
-  return learningItem({phase,skillId:'same-initial',targetId:entry.initial,emoji:entry.emoji,display:entry.initial,word:entry.word,prompt:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',speech:entry.word+'와 같은 '+spokenLetter(entry.initial)+'으로 시작하는 그림을 찾아보세요.',choices:youngerPair(match,other).map(value=>itemChoice(value.word,value.emoji+' '+value.word,value.word)),answer:match.word,answerSpeech:entry.word+'와 '+match.word+'는 모두 '+spokenLetter(entry.initial)+'으로 시작해요.'});
+  const choices=[
+    itemChoice('same-a',initial+'  '+initial,initial+' 두 개'),
+    itemChoice('different',initial+'  '+other,initial+'과 '+other),
+    itemChoice('same-b',initial+'  '+initial,initial+' 두 개')
+  ].slice(0,count);
+  return learningItem({phase,skillId:'different-letter',targetId:initial,display:initial,word:'서로 다른 글자는?',prompt:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',speech:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',choices,answer:'different',answerSpeech:spokenLetter(initial)+'과 '+spokenLetter(other)+'가 서로 달라요.'});
 }
 function buildYoungerItems(week,session,isReview,supportLevel){
   const targets=isReview?week.weeklyReview.targets:session.targets;
   const entries=youngerEntriesFor(targets);
-  const plans={
-    'picture-first':['picture-find','picture-find','picture-word','picture-find'],
-    'sound-link':['picture-find','picture-word','picture-find','initial-exposure'],
-    'initial-intro':['picture-find','picture-word','initial-exposure','initial-choice'],
-    'initial-ready':['picture-find','picture-word','initial-choice','same-initial','same-initial']
-  };
-  const sameInitialPlans={
-    'picture-first':['picture-find','picture-word','initial-exposure','same-initial'],
-    'sound-link':['picture-find','picture-word','initial-exposure','same-initial'],
-    'initial-intro':['picture-word','initial-exposure','initial-choice','same-initial'],
-    'initial-ready':['initial-exposure','initial-choice','same-initial','same-initial','same-initial']
-  };
-  const selectedPlans=week.stage==='same-initial'?sameInitialPlans:plans;
-  const plan=[...(selectedPlans[supportLevel] || selectedPlans['picture-first'])];
-  if(isReview && plan.length<5) plan.push('picture-find');
-  return plan.map((type,index)=>{
-    const entry=entries[index%entries.length];
-    const phase=isReview?'weekreview':'new';
-    let item;
-    if(type==='picture-word') item=youngerPictureWord(entry,phase);
-    else if(type==='initial-exposure') item=youngerInitialExposure(entry,phase);
-    else if(type==='initial-choice') item=youngerInitialChoice(entry,phase);
-    else if(type==='same-initial') item=youngerSameInitial(entry,entries,phase);
-    else item=youngerPictureFind(entry,phase);
-    item.itemId=(isReview?'review':session.id)+':item-'+(index+1);
-    return item;
-  });
+  const phase=isReview?'weekreview':'new';
+  const choiceCount=supportLevel==='picture-first'?2:3;
+  const selected=Array.from({length:7},(_,index)=>entries[index%entries.length]);
+  const items=[
+    youngerPictureWord(selected[0],phase),
+    youngerPictureFind(selected[1],phase,choiceCount),
+    youngerInitialChoice(selected[2],phase,choiceCount,false),
+    youngerSameInitial(selected[3],entries,phase,choiceCount),
+    youngerDifferentLetter(selected[4],phase,choiceCount),
+    youngerPictureFind(selected[5],phase,choiceCount),
+    supportLevel==='initial-ready'
+      ? youngerInitialChoice(selected[6],phase,3,true)
+      : supportLevel==='initial-intro'
+        ? youngerInitialChoice(selected[6],phase,3,false)
+        : supportLevel==='sound-link'
+          ? youngerPictureFind(selected[6],phase,3)
+          : youngerInitialExposure(selected[6],phase),
+    writingItem(selected[0].initial || 'ㄱ','trace',phase)
+  ];
+  return items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
 }
 function supportLevelFor(profile){
   return profile.placement.result && profile.placement.result.supportLevel || 'picture-first';
@@ -1004,6 +1136,108 @@ function begin(){
   show('lesson');
   render();
 }
+function drawingContext(){
+  const canvas=document.getElementById('writingCanvas');
+  return canvas?canvas.getContext('2d'):null;
+}
+function resizeDrawingCanvas(){
+  const canvas=document.getElementById('writingCanvas');
+  if(!canvas || canvas.hidden) return;
+  const rect=canvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return;
+  const scale=Math.min(window.devicePixelRatio || 1,2);
+  canvas.width=Math.round(rect.width*scale);
+  canvas.height=Math.round(rect.height*scale);
+  const context=drawingContext();
+  context.setTransform(scale,0,0,scale,0,0);
+  context.lineCap='round';
+  context.lineJoin='round';
+}
+function setDrawingTool(tool){
+  drawingUi.tool=tool==='eraser'?'eraser':'pen';
+  ['pen','eraser'].forEach(name=>{
+    const button=document.getElementById(name+'Tool');
+    const active=name===drawingUi.tool;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+}
+function prepareDrawing(item){
+  const guide=document.getElementById('writingGuide');
+  guide.textContent=item.writingTarget || item.targetId;
+  guide.classList.toggle('copy',item.writingMode==='copy');
+  if((item.writingTarget || '').length>=4) guide.style.fontSize=item.writingMode==='copy'?'clamp(32px,7vw,58px)':'clamp(64px,14vw,116px)';
+  else guide.style.fontSize='';
+  document.getElementById('writingStatus').textContent=item.writingMode==='copy'
+    ? '위 글자를 보고 아래 빈 곳에 써보세요.'
+    : '연한 가이드 위를 따라 써보세요.';
+  drawingUi.activeItemId=item.itemId;
+  drawingUi.inkDistance=0;
+  drawingUi.drawing=false;
+  drawingUi.lastPoint=null;
+  state.answered=false;
+  setDrawingTool('pen');
+  resizeDrawingCanvas();
+}
+function resetDrawing(){
+  const item=state.items[state.index];
+  if(!item || item.type!=='drawing') return;
+  prepareDrawing(item);
+  document.getElementById('nextBtn').disabled=true;
+}
+function drawingPoint(event){
+  const canvas=document.getElementById('writingCanvas');
+  const rect=canvas.getBoundingClientRect();
+  return {x:event.clientX-rect.left,y:event.clientY-rect.top};
+}
+function beginDrawing(event){
+  const item=state.items[state.index];
+  if(!item || item.type!=='drawing') return;
+  event.preventDefault();
+  const canvas=event.currentTarget;
+  try{canvas.setPointerCapture(event.pointerId);}catch(error){}
+  drawingUi.drawing=true;
+  drawingUi.lastPoint=drawingPoint(event);
+}
+function moveDrawing(event){
+  if(!drawingUi.drawing || !drawingUi.lastPoint) return;
+  event.preventDefault();
+  const point=drawingPoint(event);
+  const context=drawingContext();
+  const previous=drawingUi.lastPoint;
+  context.globalCompositeOperation=drawingUi.tool==='eraser'?'destination-out':'source-over';
+  context.strokeStyle='#2F2F33';
+  context.lineWidth=drawingUi.tool==='eraser'?34:16;
+  context.beginPath();
+  context.moveTo(previous.x,previous.y);
+  context.lineTo(point.x,point.y);
+  context.stroke();
+  const distance=Math.hypot(point.x-previous.x,point.y-previous.y);
+  if(drawingUi.tool==='pen') drawingUi.inkDistance+=distance;
+  drawingUi.lastPoint=point;
+  if(!state.answered && drawingUi.inkDistance>=24){
+    state.answered=true;
+    document.getElementById('nextBtn').disabled=false;
+    document.getElementById('writingStatus').textContent='좋아요! 더 써보거나 다음으로 넘어가세요. ✨';
+  }
+}
+function endDrawing(event){
+  if(!drawingUi.drawing) return;
+  drawingUi.drawing=false;
+  drawingUi.lastPoint=null;
+  try{event.currentTarget.releasePointerCapture(event.pointerId);}catch(error){}
+}
+function initializeDrawingCanvas(){
+  const canvas=document.getElementById('writingCanvas');
+  canvas.addEventListener('pointerdown',beginDrawing);
+  canvas.addEventListener('pointermove',moveDrawing);
+  canvas.addEventListener('pointerup',endDrawing);
+  canvas.addEventListener('pointercancel',endDrawing);
+  window.addEventListener('resize',()=>{
+    const item=state.items[state.index];
+    if(item && item.type==='drawing') resetDrawing();
+  });
+}
 function render(){
   if(state.index>=state.items.length){finish();return;}
   const item=state.items[state.index];
@@ -1014,7 +1248,10 @@ function render(){
   document.getElementById('feedback').textContent='';
   const choices=document.getElementById('choices');
   choices.innerHTML='';
-  choices.classList.toggle('two-choice',state.child==='younger');
+  choices.hidden=false;
+  choices.classList.toggle('two-choice',item.choices.length===2);
+  const writingPanel=document.getElementById('writingPanel');
+  writingPanel.hidden=true;
   document.getElementById('progressText').textContent=(state.index+1)+' / '+state.items.length;
   document.getElementById('progressBar').style.width=(((state.index+1)/state.items.length)*100)+'%';
   document.getElementById('stars').textContent=state.stars;
@@ -1023,14 +1260,18 @@ function render(){
     : item.phase==='weekreview'?'🧩 '+state.weekNumber+'주차 복습':'🌱 새 학습';
   document.getElementById('timeText').textContent=state.mode==='weekreview'
     ? '주간복습'
-    : (state.child==='older'?'약 8~10분':'약 5~7분');
+    : (state.child==='older'?'약 10~12분':'약 8~10분');
   const week=weekFor(state.child,state.weekNumber);
   document.getElementById('lessonTitle').textContent=childName(state.child)+' · '+state.weekNumber+'주차 '+(state.mode==='weekreview'?'주간복습':state.sessionNumber+'회');
   document.getElementById('bigEmoji').textContent=item.emoji || '';
   document.getElementById('bigLetter').textContent=item.display || '';
   document.getElementById('word').textContent=item.word || week.title;
   document.getElementById('hint').textContent=item.prompt;
-  if(item.type==='info'){
+  if(item.type==='drawing'){
+    choices.hidden=true;
+    writingPanel.hidden=false;
+    requestAnimationFrame(()=>prepareDrawing(item));
+  }else if(item.type==='info'){
     const button=document.createElement('button');
     button.className='choice correct';
     button.textContent='알겠어요 👍';
@@ -1040,6 +1281,20 @@ function render(){
       button.disabled=true;
       nextButton.disabled=false;
       speak(item.speech);
+    };
+    choices.appendChild(button);
+  }else if(item.type==='speak'){
+    const button=document.createElement('button');
+    button.className='choice';
+    button.textContent='소리 내어 읽었어요 🗣️';
+    button.onclick=()=>{
+      if(state.answered) return;
+      state.answered=true;
+      button.classList.add('correct');
+      button.disabled=true;
+      nextButton.disabled=false;
+      document.getElementById('feedback').textContent='천천히 읽어보았어요!';
+      speak(item.targetId);
     };
     choices.appendChild(button);
   }else{
@@ -1162,7 +1417,11 @@ function parentPlacementStatus(profile,child){
   if(placement.status==='skipped') return '테스트 건너뜀 · 1주차 시작';
   const result=placement.result || {};
   if(child==='older'){
-    return result.allPassed?'문장 단계 준비됨 · 8주차':'테스트 결과 · '+(result.startWeek||1)+'주차 시작';
+    const diagnostic=result.advancedDiagnostics && result.advancedDiagnostics.finalConsonant;
+    const diagnosticText=diagnostic && diagnostic.asked
+      ? ' · 받침 진단 '+diagnostic.correct+'/'+diagnostic.asked
+      : '';
+    return (result.allPassed?'문장 단계 준비됨 · 8주차':'테스트 결과 · '+(result.startWeek||1)+'주차 시작')+diagnosticText;
   }
   return '테스트 결과 · '+supportLevelLabel(result.supportLevel)+' · 1주차';
 }
@@ -1216,6 +1475,7 @@ function closeParent(event){
   if(event.target.id==='parentModal') event.currentTarget.classList.remove('show');
 }
 
+initializeDrawingCanvas();
 updateProgressDisplay();
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
