@@ -34,10 +34,10 @@
     week(3,'다양한 받침 낱말 구별하기','word-final-varied',[
       session('session-1','밤·별·산',['밤','별','산'],['review','read-word','discriminate','writing']),
       session('session-2','꽃·옷·빛',['꽃','옷','빛'],['review','read-word','discriminate','writing']),
-      session('session-3','목·입·집',['목','입','집'],['review','read-word','final-syllable','writing']),
+      session('session-3','약·입·집',['약','입','집'],['review','read-word','final-syllable','writing']),
       session('session-4','책·공·문',['책','공','문'],['review','read-word','fill-word','writing']),
-      session('session-5','받침 구별 도전',['밤','별','꽃','옷','목','입','책','공'],['review','discriminate','challenge','writing'])
-    ],weeklyReview(['밤','별','산','꽃','옷','빛','목','입','집','책','공','문'],['read-word','discriminate','writing'])),
+      session('session-5','받침 구별 도전',['밤','별','꽃','옷','약','입','책','공'],['review','discriminate','challenge','writing'])
+    ],weeklyReview(['밤','별','산','꽃','옷','빛','약','입','집','책','공','문'],['read-word','discriminate','writing'])),
     week(4,'비슷한 글자 구별과 낱말 완성','word-completion',[
       session('session-1','눈과 문',['눈','문','눈물'],['review','discriminate','fill-word','writing']),
       session('session-2','달과 발',['달','발','다리'],['review','discriminate','fill-word','writing']),
@@ -178,10 +178,10 @@
     wordPicture('t-wv-01','밤',[['밤','🌙'],['발','🦶'],['밥','🍚']],'밤'),
     wordPicture('t-wv-02','별',[['별','⭐'],['꽃','🌼'],['책','📚']],'별'),
     wordPicture('t-wv-03','산',[['산','⛰️'],['집','🏠'],['옷','👕']],'산'),
-    wordPicture('t-wv-04','꽃',[['빛','💡'],['꽃','🌼'],['목','🦒']],'꽃'),
+    wordPicture('t-wv-04','꽃',[['빛','💡'],['꽃','🌼'],['약','💊']],'꽃'),
     wordPicture('t-wv-05','옷',[['입','👄'],['옷','👕'],['밤','🌙']],'옷'),
     wordPicture('t-wv-06','빛',[['별','⭐'],['빛','💡'],['책','📚']],'빛'),
-    wordPicture('t-wv-07','목',[['목','🦒'],['입','👄'],['집','🏠']],'목'),
+    wordPicture('t-wv-07','약',[['약','💊'],['입','👄'],['집','🏠']],'약'),
     wordPicture('t-wv-08','입',[['꽃','🌼'],['입','👄'],['산','⛰️']],'입'),
     wordPicture('t-wv-09','집',[['옷','👕'],['밤','🌙'],['집','🏠']],'집'),
     wordPicture('t-wv-10','책',[['책','📚'],['산','⛰️'],['빛','💡']],'책')

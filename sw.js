@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'hangul-playground-';
-const CACHE = 'hangul-playground-v05d1';
+const CACHE = 'hangul-playground-v05d1q1';
 const ASSETS = [
   './',
   './index.html',
