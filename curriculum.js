@@ -174,6 +174,30 @@
     wordPicture('t-wf-09','집',[['옷','👕'],['문','🚪'],['집','🏠']],'집'),
     wordPicture('t-wf-10','옷',[['손','✋'],['옷','👕'],['달','🌙']],'옷')
   ];
+  const taeyoonVariedFinalBank=[
+    wordPicture('t-wv-01','밤',[['밤','🌙'],['발','🦶'],['밥','🍚']],'밤'),
+    wordPicture('t-wv-02','별',[['별','⭐'],['꽃','🌼'],['책','📚']],'별'),
+    wordPicture('t-wv-03','산',[['산','⛰️'],['집','🏠'],['옷','👕']],'산'),
+    wordPicture('t-wv-04','꽃',[['빛','💡'],['꽃','🌼'],['목','🦒']],'꽃'),
+    wordPicture('t-wv-05','옷',[['입','👄'],['옷','👕'],['밤','🌙']],'옷'),
+    wordPicture('t-wv-06','빛',[['별','⭐'],['빛','💡'],['책','📚']],'빛'),
+    wordPicture('t-wv-07','목',[['목','🦒'],['입','👄'],['집','🏠']],'목'),
+    wordPicture('t-wv-08','입',[['꽃','🌼'],['입','👄'],['산','⛰️']],'입'),
+    wordPicture('t-wv-09','집',[['옷','👕'],['밤','🌙'],['집','🏠']],'집'),
+    wordPicture('t-wv-10','책',[['책','📚'],['산','⛰️'],['빛','💡']],'책')
+  ];
+  const taeyoonWordCompletionBank=[
+    question('t-wc-01','fill-word','□물','빈칸에 들어갈 글자를 찾아보세요.','낱말의 빈칸에 들어갈 글자를 찾아보세요.',[choice('눈','눈'),choice('국','국'),choice('괴','괴')],'눈'),
+    question('t-wc-02','fill-word','□다','빈칸에 들어갈 글자를 찾아보세요.','낱말의 빈칸에 들어갈 글자를 찾아보세요.',[choice('바','바'),choice('가','가'),choice('오','오')],'바'),
+    question('t-wc-03','fill-word','기□','빈칸에 들어갈 글자를 찾아보세요.','낱말의 빈칸에 들어갈 글자를 찾아보세요.',[choice('자','자'),choice('차','차'),choice('사','사')],'차'),
+    question('t-wc-04','similar-word','밤하늘에 밝게 떠요.','설명에 맞는 낱말을 찾아보세요.','설명을 읽고 알맞은 낱말을 찾아보세요.',[choice('달','달'),choice('발','발'),choice('말','말')],'달'),
+    question('t-wc-05','similar-word','문을 열고 들어가는 곳이에요.','설명에 맞는 낱말을 찾아보세요.','설명을 읽고 알맞은 낱말을 찾아보세요.',[choice('집','집'),choice('입','입'),choice('빛','빛')],'집'),
+    question('t-wc-06','similar-word','음식을 먹는 몸의 부분이에요.','설명에 맞는 낱말을 찾아보세요.','설명을 읽고 알맞은 낱말을 찾아보세요.',[choice('옷','옷'),choice('입','입'),choice('집','집')],'입'),
+    question('t-wc-07','complete-word','ㅂ + ㅏ + ㄹ','글자 조각을 합쳐 낱말을 완성해보세요.','글자 조각을 합쳐 알맞은 낱말을 찾아보세요.',[choice('달','달'),choice('발','발'),choice('말','말')],'발'),
+    question('t-wc-08','complete-word','ㅂ + ㅏ + ㅁ','글자 조각을 합쳐 낱말을 완성해보세요.','글자 조각을 합쳐 알맞은 낱말을 찾아보세요.',[choice('밤','밤'),choice('밥','밥'),choice('발','발')],'밤'),
+    question('t-wc-09','complete-word','ㅂ + ㅏ + ㅂ','글자 조각을 합쳐 낱말을 완성해보세요.','글자 조각을 합쳐 알맞은 낱말을 찾아보세요.',[choice('밤','밤'),choice('밥','밥'),choice('발','발')],'밥'),
+    question('t-wc-10','fill-word','□리','빈칸에 들어갈 글자를 찾아보세요.','낱말의 빈칸에 들어갈 글자를 찾아보세요.',[choice('오','오'),choice('다','다'),choice('소','소')],'오')
+  ];
   const taeyoonSentenceBank=[
     sentencePicture('t-sr-01','기차가 가요.',[['기차가 가요.','🚂💨'],['나비가 와요.','🦋👋'],['우유를 마셔요.','🥛😋']],'기차가 가요.'),
     sentencePicture('t-sr-02','아기가 자요.',[['아기가 자요.','👶😴'],['공이 굴러가요.','⚽💨'],['달이 떠요.','🌙✨']],'아기가 자요.'),
@@ -222,13 +246,15 @@
   ];
 
   const taeyoonTest={
-    id:'taeyoon-placement-v5',
+    id:'taeyoon-placement-v6',
     title:'태윤 한글 읽기 레벨테스트',
-    estimatedMinutes:6,
-    maxQuestions:18,
+    estimatedMinutes:8,
+    maxQuestions:24,
     stages:[
       stage('word-basic','받침 없는 낱말 읽기',taeyoonWordBasicBank,{startWeek:1,fallbackStageId:'foundation-fallback'}),
-      stage('word-final','받침 있는 낱말 읽기',taeyoonWordFinalBank,{startWeek:2}),
+      stage('word-final-basic','쉬운 받침 낱말 읽기',taeyoonWordFinalBank,{startWeek:2}),
+      stage('word-final-varied','다양한 받침 낱말 읽기',taeyoonVariedFinalBank,{startWeek:3}),
+      stage('word-completion','비슷한 낱말 구별과 완성',taeyoonWordCompletionBank,{startWeek:4}),
       stage('sentence-read','짧은 문장 읽기',taeyoonSentenceBank,{startWeek:5}),
       stage('sentence-understanding','문장 내용 이해',taeyoonSentenceUnderstandingBank,{startWeek:6}),
       stage('passage-understanding','짧은 글 이해',taeyoonPassageBank,{startWeek:7}),
@@ -279,7 +305,7 @@
   };
 
   window.HANGUL_CURRICULUM={
-    version:'0.5-D',
+    version:'0.5-D.1',
     letterSpeech:{
       'ㄱ':'기역','ㄴ':'니은','ㄷ':'디귿','ㄹ':'리을','ㅁ':'미음','ㅂ':'비읍','ㅅ':'시옷',
       'ㅇ':'이응','ㅈ':'지읒','ㅊ':'치읓','ㅋ':'키읔','ㅌ':'티읕','ㅍ':'피읖','ㅎ':'히읗',

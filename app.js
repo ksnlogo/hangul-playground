@@ -607,7 +607,7 @@ function showPlacementIntro(child,profile){
   const inProgress=profile.placement.status==='in-progress';
   document.getElementById('placementIntroTitle').textContent=childName(child)+' 레벨테스트';
   document.getElementById('placementIntroText').textContent=isOlder
-    ? '받침 없는 낱말부터 문장과 짧은 글 이해까지 확인해요. 첫 낱말 단계가 어려울 때만 음절과 자모를 보충 진단합니다.'
+    ? '받침 없는 낱말부터 다양한 받침, 낱말 완성, 문장과 짧은 글 이해까지 확인해요. 첫 낱말 단계가 어려울 때만 음절과 자모를 보충 진단합니다.'
     : '그림과 소리를 이용한 놀이로 어떤 도움이 편한지 확인해요. 글자를 읽어야 풀 수 있는 문제는 없어요.';
   document.getElementById('placementResumeNote').hidden=!inProgress;
   document.getElementById('placementStartButton').textContent=inProgress?'이어서 하기':'레벨테스트 시작';
@@ -1498,19 +1498,29 @@ function includeDrawingPoint(point){
   drawingUi.bounds.minY=Math.min(drawingUi.bounds.minY,point.y);
   drawingUi.bounds.maxY=Math.max(drawingUi.bounds.maxY,point.y);
 }
-function drawingMetricsReady(){
+function meaningfulWritingLength(target){
+  const letters=Array.from(String(target || '')).filter(char=>/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(char));
+  return Math.max(1,letters.length);
+}
+function drawingCompletionLimits(item){
+  if(state.child==='younger') return {strokes:1,distance:80,width:35,height:30};
+  const length=meaningfulWritingLength(item && (item.writingTarget || item.targetId));
+  if(length===1) return {strokes:2,distance:90,width:38,height:30};
+  if(length===2) return {strokes:3,distance:120,width:52,height:34};
+  const extra=Math.min(3,length-3);
+  return {strokes:4,distance:150+extra*10,width:65+extra*8,height:38};
+}
+function drawingMetricsReady(item=state.items[state.index]){
   if(!drawingUi.bounds) return false;
   const width=drawingUi.bounds.maxX-drawingUi.bounds.minX;
   const height=drawingUi.bounds.maxY-drawingUi.bounds.minY;
-  const limits=state.child==='younger'
-    ? {strokes:1,distance:80,width:35,height:30}
-    : {strokes:2,distance:120,width:45,height:35};
+  const limits=drawingCompletionLimits(item);
   return drawingUi.strokeCount>=limits.strokes && drawingUi.inkDistance>=limits.distance && width>=limits.width && height>=limits.height;
 }
 function updateDrawingCompletion(){
   const item=state.items[state.index];
   if(!item || item.type!=='drawing') return;
-  drawingUi.metricsReady=drawingMetricsReady();
+  drawingUi.metricsReady=drawingMetricsReady(item);
   const revealButton=document.getElementById('revealWritingAnswer');
   const nextButton=document.getElementById('nextBtn');
   if(!drawingUi.metricsReady){
