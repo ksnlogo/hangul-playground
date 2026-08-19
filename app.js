@@ -14,12 +14,14 @@ let state={
   weekNumber:null,
   sessionNumber:null,
   activityId:null,
-  replay:false
+  replay:false,
+  variantIndex:0
 };
 
 let placementUi={waiting:false,finished:false};
 let drawingUi={
-  tool:'pen',drawing:false,lastPoint:null,inkDistance:0,activeItemId:null
+  tool:'pen',drawing:false,lastPoint:null,inkDistance:0,strokeDistance:0,strokeCount:0,
+  bounds:null,metricsReady:false,answerRevealed:false,activeItemId:null
 };
 
 const STORAGE_KEY='hangulPlaygroundV05';
@@ -95,12 +97,15 @@ function emptyProfile(child){
     legacyStars:0,
     placement:emptyPlacement(),
     progress:emptyProgress(),
+    curriculumHistory:[],
+    progressMigration:null,
     legacyV04:emptyLegacyProfile()
   };
 }
 function createDefaultData(sourceVersion='fresh'){
   return {
     version:5,
+    curriculumRevision:CURRICULUM.version,
     updatedAt:new Date().toISOString(),
     migration:{sourceVersion,migratedAt:new Date().toISOString()},
     children:{older:emptyProfile('older'),younger:emptyProfile('younger')}
@@ -151,30 +156,60 @@ function normalizeAnswer(answer){
     answeredAt:typeof answer.answeredAt==='string'?answer.answeredAt:null
   };
 }
+function questionsForStage(stage){
+  return Array.isArray(stage.questionBank)?stage.questionBank:(Array.isArray(stage.questions)?stage.questions:[]);
+}
 function normalizeAttempt(attempt,child){
   if(!attempt || typeof attempt!=='object') return null;
   const test=CURRICULUM.levelTests[child];
   if(attempt.testId!==test.id) return null;
+  const selectedQuestionIds={};
+  const choiceOrders={};
+  if(!isPlainObject(attempt.selectedQuestionIds) || !isPlainObject(attempt.choiceOrders)) return null;
+  for(const stage of test.stages){
+    const bank=questionsForStage(stage);
+    const bankIds=new Set(bank.map(question=>question.id));
+    const wanted=Math.min(safeCount(stage.sampleCount,bank.length),bank.length);
+    const selected=Array.isArray(attempt.selectedQuestionIds[stage.id])
+      ? attempt.selectedQuestionIds[stage.id].filter(id=>typeof id==='string' && bankIds.has(id))
+      : [];
+    const unique=[...new Set(selected)].slice(0,wanted);
+    if(unique.length!==wanted) return null;
+    selectedQuestionIds[stage.id]=unique;
+    for(const questionId of unique){
+      const question=bank.find(item=>item.id===questionId);
+      const validChoiceIds=question.choices.map(option=>option.id);
+      const order=Array.isArray(attempt.choiceOrders[questionId])
+        ? attempt.choiceOrders[questionId].filter(id=>validChoiceIds.includes(id))
+        : [];
+      if(order.length!==validChoiceIds.length || new Set(order).size!==validChoiceIds.length) return null;
+      choiceOrders[questionId]=order;
+    }
+  }
   const stageIndex=safeCount(attempt.stageIndex,test.stages.length-1);
   const stage=test.stages[stageIndex];
-  const questionIndex=safeCount(attempt.questionIndex,stage.questions.length-1);
+  const questionIndex=safeCount(attempt.questionIndex,selectedQuestionIds[stage.id].length-1);
+  const selectedIds=new Set(Object.values(selectedQuestionIds).flat());
   const answers=Array.isArray(attempt.answers)
-    ? attempt.answers.map(normalizeAnswer).filter(Boolean).slice(0,test.maxQuestions)
+    ? attempt.answers.map(normalizeAnswer).filter(answer=>answer && selectedIds.has(answer.questionId)).slice(0,test.maxQuestions)
     : [];
   return {
     id:safeString(attempt.id,test.id+'-resume'),
     testId:test.id,
+    seed:safeCount(attempt.seed,0xFFFFFFFF),
     startedAt:typeof attempt.startedAt==='string'?attempt.startedAt:new Date().toISOString(),
     stageIndex,
     questionIndex,
-    answers
+    answers,
+    selectedQuestionIds,
+    choiceOrders
   };
 }
 function normalizePlacementResult(result,child){
   if(!isPlainObject(result)) return null;
   const kind=result.kind==='skipped'?'skipped':'test';
   const startWeek=child==='older'
-    ? (result.allPassed?8:([1,4,6,7,8].includes(Number(result.startWeek))?Number(result.startWeek):1))
+    ? (result.allPassed?8:([1,2,3,4,5,6,7,8].includes(Number(result.startWeek))?Number(result.startWeek):1))
     : 1;
   const allowedSupportLevels=['picture-first','sound-link','initial-intro','initial-ready'];
   const supportLevel=child==='younger'
@@ -188,6 +223,10 @@ function normalizePlacementResult(result,child){
         passed:Boolean(diagnostic.passed)
       }
     : null;
+  const fallback=result.fallbackDiagnostics;
+  const foundation=child==='older' && isPlainObject(fallback)
+    ? {correct:safeCount(fallback.correct,3),asked:safeCount(fallback.asked,3),passed:Boolean(fallback.passed)}
+    : null;
   return {
     kind,
     testId:typeof result.testId==='string'?result.testId:null,
@@ -200,7 +239,8 @@ function normalizePlacementResult(result,child){
     stageScores:Array.isArray(result.stageScores)
       ? result.stageScores.map(value=>safeObject(value)).filter(Boolean).slice(0,CURRICULUM.levelTests[child].stages.length)
       : [],
-    advancedDiagnostics:{finalConsonant}
+    advancedDiagnostics:{finalConsonant},
+    fallbackDiagnostics:foundation
   };
 }
 function normalizePlacement(placement,child){
@@ -236,13 +276,12 @@ function normalizeProgressRecords(records,courseId,kind){
   });
   return clean;
 }
-function normalizeProgress(progress,child){
+function normalizeProgress(progress,child,courseId=courseIdFor(child)){
   const clean=emptyProgress();
   if(!progress || typeof progress!=='object') return clean;
   if(progress.startWeek!==null && progress.startWeek!==undefined) clean.startWeek=Math.max(1,safeCount(progress.startWeek,8));
   if(progress.currentWeek!==null && progress.currentWeek!==undefined) clean.currentWeek=Math.max(1,safeCount(progress.currentWeek,8));
   clean.currentSession=Math.max(1,safeCount(progress.currentSession,5));
-  const courseId=courseIdFor(child);
   clean.completedSessions=normalizeProgressRecords(progress.completedSessions,courseId,'session');
   clean.weeklyReviews=normalizeProgressRecords(progress.weeklyReviews,courseId,'review');
   clean.placedWeeks=Array.isArray(progress.placedWeeks)
@@ -254,6 +293,23 @@ function normalizeProgress(progress,child){
   }
   clean.courseCompleted=Boolean(progress.courseCompleted);
   return clean;
+}
+function hasMeaningfulProgress(progress){
+  return Boolean(progress && (
+    progress.startWeek!==null || progress.currentWeek!==null || progress.courseCompleted ||
+    Object.keys(progress.completedSessions || {}).length || Object.keys(progress.weeklyReviews || {}).length
+  ));
+}
+function normalizeCurriculumHistory(history,child){
+  if(!Array.isArray(history)) return [];
+  return history.map(entry=>{
+    if(!isPlainObject(entry) || typeof entry.courseId!=='string' || !isPlainObject(entry.progress)) return null;
+    return {
+      courseId:entry.courseId,
+      archivedAt:typeof entry.archivedAt==='string'?entry.archivedAt:null,
+      progress:normalizeProgress(entry.progress,child,entry.courseId)
+    };
+  }).filter(Boolean).slice(-3);
 }
 function initializeProgressFromPlacement(profile,child){
   const progress=profile.progress;
@@ -274,7 +330,38 @@ function normalizeProfile(profile,child){
   clean.legacyStars=safeCount(profile.legacyStars);
   clean.stars=Math.max(safeCount(profile.stars),clean.legacyStars);
   clean.placement=normalizePlacement(profile.placement,child);
-  clean.progress=normalizeProgress(profile.progress,child);
+  clean.curriculumHistory=normalizeCurriculumHistory(profile.curriculumHistory,child);
+  const currentCourseId=courseIdFor(child);
+  const sourceCourseId=safeString(profile.courseId,currentCourseId);
+  const sourceProgress=normalizeProgress(profile.progress,child,sourceCourseId);
+  if(child==='older' && sourceCourseId!==currentCourseId && hasMeaningfulProgress(sourceProgress)){
+    if(!clean.curriculumHistory.some(entry=>entry.courseId===sourceCourseId)){
+      clean.curriculumHistory.push({courseId:sourceCourseId,archivedAt:new Date().toISOString(),progress:sourceProgress});
+      clean.curriculumHistory=clean.curriculumHistory.slice(-3);
+    }
+    const anchorWeek=Math.max(1,Math.min(8,sourceProgress.currentWeek || sourceProgress.startWeek || 1));
+    clean.progress=emptyProgress();
+    clean.progress.startWeek=anchorWeek;
+    clean.progress.currentWeek=anchorWeek;
+    clean.progress.currentSession=1;
+    clean.progress.placedWeeks=Array.from({length:anchorWeek-1},(_,index)=>index+1);
+    clean.progressMigration={
+      fromCourseId:sourceCourseId,
+      toCourseId:currentCourseId,
+      anchorWeek,
+      migratedAt:new Date().toISOString()
+    };
+  }else{
+    clean.progress=normalizeProgress(profile.progress,child,currentCourseId);
+    if(isPlainObject(profile.progressMigration)){
+      clean.progressMigration={
+        fromCourseId:safeString(profile.progressMigration.fromCourseId),
+        toCourseId:safeString(profile.progressMigration.toCourseId,currentCourseId),
+        anchorWeek:Math.max(1,safeCount(profile.progressMigration.anchorWeek,8)),
+        migratedAt:typeof profile.progressMigration.migratedAt==='string'?profile.progressMigration.migratedAt:null
+      };
+    }
+  }
   clean.legacyV04=normalizeLegacyProfile(profile.legacyV04);
   initializeProgressFromPlacement(clean,child);
   return clean;
@@ -282,6 +369,7 @@ function normalizeProfile(profile,child){
 function normalizeData(data){
   const clean=createDefaultData('fresh');
   if(!data || typeof data!=='object') return clean;
+  clean.curriculumRevision=CURRICULUM.version;
   clean.updatedAt=typeof data.updatedAt==='string'?data.updatedAt:clean.updatedAt;
   if(data.migration && typeof data.migration==='object'){
     const sourceVersion=data.migration.sourceVersion;
@@ -519,11 +607,80 @@ function showPlacementIntro(child,profile){
   const inProgress=profile.placement.status==='in-progress';
   document.getElementById('placementIntroTitle').textContent=childName(child)+' 레벨테스트';
   document.getElementById('placementIntroText').textContent=isOlder
-    ? '자음부터 짧은 문장까지 차례로 확인하고, 마지막에는 받침 낱말을 심화 진단해요. 받침 결과는 기본 8주 배치에 영향을 주지 않아요.'
+    ? '받침 없는 낱말부터 문장과 짧은 글 이해까지 확인해요. 첫 낱말 단계가 어려울 때만 음절과 자모를 보충 진단합니다.'
     : '그림과 소리를 이용한 놀이로 어떤 도움이 편한지 확인해요. 글자를 읽어야 풀 수 있는 문제는 없어요.';
   document.getElementById('placementResumeNote').hidden=!inProgress;
   document.getElementById('placementStartButton').textContent=inProgress?'이어서 하기':'레벨테스트 시작';
   show('placementIntro');
+}
+function hashSeed(value){
+  let hash=2166136261;
+  for(const char of String(value)){
+    hash^=char.codePointAt(0);
+    hash=Math.imul(hash,16777619);
+  }
+  return hash>>>0;
+}
+function seededRandom(seed){
+  let value=seed>>>0;
+  return ()=>{
+    value+=0x6D2B79F5;
+    let result=value;
+    result=Math.imul(result^(result>>>15),result|1);
+    result^=result+Math.imul(result^(result>>>7),result|61);
+    return ((result^(result>>>14))>>>0)/4294967296;
+  };
+}
+function shuffledWithSeed(values,seed){
+  const result=[...values];
+  const random=seededRandom(seed);
+  for(let index=result.length-1;index>0;index--){
+    const swapIndex=Math.floor(random()*(index+1));
+    [result[index],result[swapIndex]]=[result[swapIndex],result[index]];
+  }
+  return result;
+}
+function recentPlacementQuestionIds(profile,stageId){
+  const recent=profile.placement.attempts.slice(-2);
+  return new Set(recent.flatMap(attempt=>{
+    const selected=attempt && attempt.selectedQuestionIds;
+    return selected && Array.isArray(selected[stageId])?selected[stageId]:[];
+  }));
+}
+function createPlacementAttempt(test,profile){
+  let entropy=Date.now()>>>0;
+  if(globalThis.crypto && typeof globalThis.crypto.getRandomValues==='function'){
+    const values=new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    entropy^=values[0];
+  }
+  const id=test.id+'-'+Date.now()+'-'+profile.placement.attempts.length;
+  const seed=hashSeed(id+'|'+entropy);
+  const selectedQuestionIds={};
+  const choiceOrders={};
+  test.stages.forEach((stage,stageIndex)=>{
+    const bank=questionsForStage(stage);
+    const recentIds=recentPlacementQuestionIds(profile,stage.id);
+    const fresh=bank.filter(question=>!recentIds.has(question.id));
+    const recent=bank.filter(question=>recentIds.has(question.id));
+    const ordered=[
+      ...shuffledWithSeed(fresh,seed+stageIndex*101),
+      ...shuffledWithSeed(recent,seed+stageIndex*101+1)
+    ];
+    const count=Math.min(stage.sampleCount || 3,bank.length);
+    const selected=ordered.slice(0,count);
+    selectedQuestionIds[stage.id]=selected.map(question=>question.id);
+    selected.forEach((question,questionIndex)=>{
+      choiceOrders[question.id]=shuffledWithSeed(
+        question.choices.map(option=>option.id),
+        seed+stageIndex*1009+questionIndex*97
+      );
+    });
+  });
+  return {
+    id,testId:test.id,seed,startedAt:new Date().toISOString(),stageIndex:0,questionIndex:0,answers:[],
+    selectedQuestionIds,choiceOrders
+  };
 }
 function startOrResumePlacement(){
   if(!state.child) return;
@@ -533,14 +690,7 @@ function startOrResumePlacement(){
     const test=CURRICULUM.levelTests[state.child];
     profile.placement.status='in-progress';
     profile.placement.testVersion=test.id;
-    profile.placement.activeAttempt={
-      id:test.id+'-'+Date.now(),
-      testId:test.id,
-      startedAt:new Date().toISOString(),
-      stageIndex:0,
-      questionIndex:0,
-      answers:[]
-    };
+    profile.placement.activeAttempt=createPlacementAttempt(test,profile);
     save(data);
   }
   placementUi={waiting:false,finished:false};
@@ -554,7 +704,14 @@ function currentPlacementContext(){
   if(!attempt) return null;
   const test=CURRICULUM.levelTests[state.child];
   const stage=test.stages[attempt.stageIndex];
-  const question=stage && stage.questions[attempt.questionIndex];
+  const questionId=stage && attempt.selectedQuestionIds[stage.id][attempt.questionIndex];
+  const sourceQuestion=stage && questionsForStage(stage).find(question=>question.id===questionId);
+  let question=null;
+  if(sourceQuestion){
+    question=clone(sourceQuestion);
+    const order=attempt.choiceOrders[sourceQuestion.id];
+    question.choices=order.map(choiceId=>sourceQuestion.choices.find(option=>option.id===choiceId)).filter(Boolean);
+  }
   return {data,profile,attempt,test,stage,question};
 }
 function renderPlacementQuestion(){
@@ -595,9 +752,7 @@ function stageScores(test,attempt){
       label:stage.label,
       correct:answers.filter(answer=>answer.correct).length,
       asked:answers.length,
-      passed:state.child==='older'
-        ? answers.filter(answer=>answer.correct).length>=2
-        : answers.length===3 && answers.filter(answer=>answer.correct).length>=2
+      passed:answers.length===(stage.sampleCount || 3) && answers.filter(answer=>answer.correct).length>=2
     };
   }).filter(score=>score.asked>0);
 }
@@ -613,13 +768,19 @@ function finishPlacement(profile,attempt,test,details){
     failedStageId:details.failedStageId || null,
     allPassed:Boolean(details.allPassed),
     stageScores:stageScores(test,attempt),
-    advancedDiagnostics:details.advancedDiagnostics || {finalConsonant:null}
+    advancedDiagnostics:details.advancedDiagnostics || {finalConsonant:null},
+    fallbackDiagnostics:details.fallbackDiagnostics || null
   };
   profile.placement.status='completed';
   profile.placement.testVersion=test.id;
   profile.placement.result=result;
   profile.placement.activeAttempt=null;
-  profile.placement.attempts.push({...clone(result),answers:clone(attempt.answers)});
+  profile.placement.attempts.push({
+    ...clone(result),seed:attempt.seed,
+    selectedQuestionIds:clone(attempt.selectedQuestionIds),
+    choiceOrders:clone(attempt.choiceOrders),
+    answers:clone(attempt.answers)
+  });
   profile.placement.attempts=profile.placement.attempts.slice(-5);
   initializeProgressFromPlacement(profile,state.child);
   return result;
@@ -628,24 +789,35 @@ function advanceOlderPlacement(context){
   const {profile,attempt,test,stage}=context;
   const stageAnswers=answersForStage(attempt,stage.id);
   const correct=stageAnswers.filter(answer=>answer.correct).length;
-  if(stageAnswers.length===1){attempt.questionIndex=1;return null;}
-  if(stageAnswers.length===2 && correct===1){attempt.questionIndex=2;return null;}
+  const required=stage.sampleCount || 3;
+  if(stageAnswers.length<required){attempt.questionIndex=stageAnswers.length;return null;}
   const passed=correct>=2;
-  if(stage.diagnosticOnly){
+  if(stage.fallbackOnly){
     return finishPlacement(profile,attempt,test,{
-      startWeek:8,
-      allPassed:true,
-      advancedDiagnostics:{
-        finalConsonant:{correct,asked:stageAnswers.length,passed}
-      }
+      startWeek:1,
+      failedStageId:'word-basic',
+      allPassed:false,
+      fallbackDiagnostics:{correct,asked:stageAnswers.length,passed}
     });
   }
   if(!passed){
+    if(stage.fallbackStageId){
+      const fallbackIndex=test.stages.findIndex(item=>item.id===stage.fallbackStageId);
+      if(fallbackIndex>=0){
+        attempt.stageIndex=fallbackIndex;
+        attempt.questionIndex=0;
+        return null;
+      }
+    }
     return finishPlacement(profile,attempt,test,{
       startWeek:stage.startWeek,
       failedStageId:stage.id,
       allPassed:false
     });
+  }
+  const mainStages=test.stages.filter(item=>!item.fallbackOnly);
+  if(stage.id===mainStages[mainStages.length-1].id){
+    return finishPlacement(profile,attempt,test,{startWeek:8,allPassed:true});
   }
   attempt.stageIndex++;
   attempt.questionIndex=0;
@@ -654,7 +826,7 @@ function advanceOlderPlacement(context){
 function advanceYoungerPlacement(context){
   const {profile,attempt,test,stage}=context;
   const stageAnswers=answersForStage(attempt,stage.id);
-  if(stageAnswers.length<3){attempt.questionIndex=stageAnswers.length;return null;}
+  if(stageAnswers.length<(stage.sampleCount || 3)){attempt.questionIndex=stageAnswers.length;return null;}
   const passed=stageAnswers.filter(answer=>answer.correct).length>=2;
   if(!passed){
     return finishPlacement(profile,attempt,test,{
@@ -763,10 +935,13 @@ function showPlacementResult(result){
   let headline='1주차부터 시작';
   let detail='레벨테스트 없이 첫 주차부터 차근차근 시작합니다.';
   if(!skipped && state.child==='older'){
-    headline=result.allPassed?'문장 단계 준비됨':result.startWeek+'주차부터 시작';
+    headline=result.allPassed?'짧은 글 이해 단계 준비됨':result.startWeek+'주차부터 시작';
     detail=result.allPassed
-      ? '모든 단계를 통과했어요. 8주차 짧은 문장 단계에서 시작합니다.'
+      ? '모든 단계를 통과했어요. 8주차 읽기·이해·쓰기 종합 단계에서 시작합니다.'
       : '처음 통과하지 못한 단계에 맞춰 '+result.startWeek+'주차를 추천합니다.';
+    if(result.fallbackDiagnostics && result.failedStageId==='word-basic'){
+      detail+=' 낱말 읽기가 어려워 음절·자모 보충 진단도 함께 확인했어요.';
+    }
     const diagnostic=result.advancedDiagnostics && result.advancedDiagnostics.finalConsonant;
     if(diagnostic && diagnostic.asked){
       detail+=' 받침 낱말 심화 진단은 '+diagnostic.correct+' / '+diagnostic.asked+'개를 맞혔으며, 기본 8주 배치에는 영향을 주지 않아요.';
@@ -790,10 +965,37 @@ const pictureBank={
   '밥':'🍚','사과':'🍎','바나나':'🍌','우유':'🥛','빵':'🍞','오이':'🥒','멜론':'🍈',
   '눈':'👁️','코':'👃','입':'👄','손':'✋','발':'🦶','다리':'🦵',
   '공':'⚽','로봇':'🤖','책':'📚','가방':'🎒','모자':'👒','문':'🚪','물':'💧','달':'🌙','비누':'🧼','나무':'🌳','바다':'🌊','포도':'🍇','하마':'🦛',
+  '집':'🏠','옷':'👕','꽃':'🌼','산':'⛰️','밤':'🌙','별':'⭐','빛':'💡','목':'🧣','눈물':'💧',
   '가족':'👨‍👩‍👦','동물':'🐾','탈것':'🚙','음식':'🍽️','몸':'🙋','생활물건':'🎒','장난감':'🧸','첫 글자':'🔤'
 };
 const sentencePictures={
-  '아기가 자요.':'👶😴','나비가 와요.':'🦋👋','기차가 가요.':'🚂💨','우유를 마셔요.':'🥛😋','사자가 와요.':'🦁👋'
+  '아기가 자요.':'👶😴','나비가 와요.':'🦋👋','기차가 가요.':'🚂💨','우유를 마셔요.':'🥛😋','사자가 와요.':'🦁👋',
+  '오리가 가요.':'🦆➡️','공이 굴러가요.':'⚽💨','달이 떠요.':'🌙✨','나비가 꽃에 앉아요.':'🦋🌼',
+  '기차가 역에 와요.':'🚂🏫','아기가 우유를 마셔요.':'👶🥛','사자가 산에 가요.':'🦁⛰️',
+  '오리가 물에서 놀아요.':'🦆💦','태윤이가 책을 봐요.':'👦🏻📚','재윤이가 방에서 자요.':'🧒🏻🛏️'
+};
+const sentenceUnderstanding={
+  '기차가 가요.':{prompt:'무엇이 가나요?',answer:'기차',options:['기차','나비','우유']},
+  '나비가 와요.':{prompt:'무엇이 오나요?',answer:'나비',options:['사자','나비','기차']},
+  '아기가 자요.':{prompt:'누가 자나요?',answer:'아기',options:['아기','오리','태윤']},
+  '사자가 와요.':{prompt:'무엇이 오나요?',answer:'사자',options:['우유','사자','공']},
+  '우유를 마셔요.':{prompt:'무엇을 마시나요?',answer:'우유',options:['책','우유','꽃']},
+  '오리가 가요.':{prompt:'무엇이 가나요?',answer:'오리',options:['오리','기차','나비']},
+  '공이 굴러가요.':{prompt:'무엇이 굴러가나요?',answer:'공',options:['달','공','책']},
+  '달이 떠요.':{prompt:'무엇이 떠 있나요?',answer:'달',options:['달','문','꽃']},
+  '나비가 꽃에 앉아요.':{prompt:'나비는 어디에 앉았나요?',answer:'꽃',options:['꽃','기차','우유']},
+  '기차가 역에 와요.':{prompt:'기차는 어디에 왔나요?',answer:'역',options:['산','역','방']},
+  '아기가 우유를 마셔요.':{prompt:'아기는 무엇을 마시나요?',answer:'우유',options:['우유','책','공']},
+  '사자가 산에 가요.':{prompt:'사자는 어디에 가나요?',answer:'산',options:['바다','산','방']},
+  '오리가 물에서 놀아요.':{prompt:'누가 물에서 노나요?',answer:'오리',options:['나비','오리','태윤']},
+  '태윤이가 책을 봐요.':{prompt:'태윤이는 무엇을 보나요?',answer:'책',options:['책','공','꽃']},
+  '재윤이가 방에서 자요.':{prompt:'재윤이는 어디에서 자나요?',answer:'방',options:['역','방','산']}
+};
+const passageUnderstanding={
+  '나비가 날아와요.\n나비가 꽃에 앉아요.':{prompt:'나비는 마지막에 어디에 앉았나요?',answer:'꽃',options:['꽃','버스','책']},
+  '기차가 달려요.\n기차가 역에 와요.':{prompt:'기차는 마지막에 어디에 왔나요?',answer:'역',options:['산','역','방']},
+  '아기가 배가 고파요.\n아기가 우유를 마셔요.':{prompt:'아기는 왜 우유를 마셨나요?',answer:'배가 고파서',options:['배가 고파서','잠이 와서','기차를 타려고']},
+  '오리가 물에 가요.\n오리가 물에서 놀아요.':{prompt:'오리는 물에서 무엇을 하나요?',answer:'놀아요',options:['자요','놀아요','책을 봐요']}
 };
 const consonantExamples={
   'ㄱ':'기차','ㄴ':'나비','ㄷ':'다리','ㄹ':'로봇','ㅁ':'모자','ㅂ':'바나나','ㅅ':'사자',
@@ -834,11 +1036,12 @@ function speakItem(config){
 }
 function writingItem(target,mode,phase){
   const isTrace=mode==='trace';
+  const isDictation=mode==='dictation';
   return learningItem({
-    type:'drawing',phase,skillId:isTrace?'trace-writing':'copy-writing',targetId:target,
-    writingTarget:target,writingMode:mode,display:'',word:isTrace?'따라쓰기':'보고쓰기',
-    prompt:isTrace?'연한 글자를 따라 천천히 써보세요.':'위 글자를 보고 빈 곳에 써보세요.',
-    speech:target+'. '+(isTrace?'연한 글자를 따라 써보세요.':'글자를 보고 써보세요.')
+    type:'drawing',phase,skillId:isTrace?'trace-writing':(isDictation?'dictation-writing':'copy-writing'),targetId:target,
+    writingTarget:target,writingMode:mode,display:'',word:isTrace?'따라쓰기':(isDictation?'소리 듣고 쓰기':'보고쓰기'),
+    prompt:isTrace?'연한 글자를 따라 천천히 써보세요.':(isDictation?'소리를 듣고 쓴 뒤 정답을 확인해보세요.':'위 글자를 보고 빈 곳에 써보세요.'),
+    speech:target+'. '+(isTrace?'연한 글자를 따라 써보세요.':(isDictation?'들은 낱말을 써보세요.':'글자를 보고 써보세요.'))
   });
 }
 function taeyoonConsonantItem(target,variant,phase,choiceCount=3){
@@ -926,6 +1129,14 @@ function taeyoonWordItem(target,pool,variant,phase,choiceCount=3){
     const answer=syllables[Math.min(1,syllables.length-1)];
     return learningItem({phase,skillId:'find-word-syllable',targetId:target,display:target,word:'낱말 속 글자는?',prompt:'이 낱말에 들어 있는 글자를 찾아보세요.',speech:'낱말을 읽고 들어 있는 글자를 찾아보세요.',choices:stableChoices(answer,syllablePool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:target+'에는 '+answer+'가 들어 있어요.'});
   }
+  if(variant===8){
+    const answer=syllables[syllables.length-1];
+    return learningItem({phase,skillId:'word-final-syllable',targetId:target,display:target,word:'마지막 글자는?',prompt:'낱말을 읽고 마지막 글자를 찾아보세요.',speech:'낱말을 읽고 마지막 글자를 찾아보세요.',choices:stableChoices(answer,syllablePool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:target+'의 마지막 글자는 '+answer+'예요.'});
+  }
+  if(variant===9){
+    const scrambled=[...syllables].reverse().join(' · ');
+    return learningItem({phase,skillId:'word-order-challenge',targetId:target,display:scrambled,word:'바르게 만든 낱말은?',prompt:'글자 순서를 생각해 바른 낱말을 찾아보세요.',speech:'글자 순서를 생각해 바른 낱말을 찾아보세요.',choices:choices.map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'바른 낱말은 '+target+'이에요.'});
+  }
   return speakItem({phase,skillId:'read-word-no-picture',targetId:target,display:target,word:'그림 없이 읽기',prompt:'그림 도움 없이 낱말을 소리 내어 읽어보세요.',speech:'화면의 낱말을 소리 내어 읽어보세요.'});
 }
 function sentenceWords(sentence){return String(sentence).replace(/[.?!]/g,'').split(/\s+/).filter(Boolean);}
@@ -945,7 +1156,40 @@ function taeyoonSentenceItem(target,pool,variant,phase,choiceCount=3){
     const answer=words[0];
     return learningItem({phase,skillId:'sentence-word-meaning',targetId:target,display:target,word:'문장 속 낱말은?',prompt:'문장에 들어 있는 낱말을 찾아보세요.',speech:'문장을 읽고 문장에 들어 있는 낱말을 찾아보세요.',choices:stableChoices(answer,wordPool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:answer+'가 들어 있어요. '+target});
   }
+  if(variant===6 || variant===8){
+    const plain=target.replace(/[.?!]$/,'');
+    const reversed=[...words].reverse().join(' ')+'.';
+    const rotated=words.length>1?[...words.slice(1),words[0]].join(' ')+'.':plain+'요.';
+    const repeated=(words[0]+' '+words[0])+'.';
+    const optionPool=[target,reversed,rotated,repeated].filter((value,index,array)=>array.indexOf(value)===index);
+    return learningItem({phase,skillId:variant===8?'sentence-order-challenge':'sentence-order',targetId:target,display:'낱말 순서 맞추기',word:'바른 문장은?',prompt:'낱말 순서가 바른 문장을 찾아보세요.',speech:'낱말 순서가 바른 문장을 찾아보세요.',choices:stableChoices(target,optionPool,choiceCount).map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'바른 문장은 '+target});
+  }
+  if(variant===7){
+    const data=sentenceUnderstanding[target] || {prompt:'문장에서 가장 먼저 나온 낱말은 무엇인가요?',answer:words[0],options:stableChoices(words[0],wordPool,3)};
+    return learningItem({phase,skillId:'sentence-understanding',targetId:target,display:target,word:data.prompt,prompt:'문장을 읽고 질문에 답해보세요.',speech:'문장을 읽고 질문에 답해보세요.',choices:stableChoices(data.answer,data.options,choiceCount).map(value=>itemChoice(value,value,value)),answer:data.answer,answerSpeech:'정답은 '+data.answer+'예요. '+target});
+  }
   return speakItem({phase,skillId:'read-sentence-no-tts',targetId:target,display:target,word:'혼자 문장 읽기',prompt:'그림과 소리 도움 없이 문장을 읽어보세요.',speech:'화면의 문장을 혼자 읽어보세요.'});
+}
+function targetKind(target){
+  if(String(target).includes('\n')) return 'passage';
+  if(String(target).includes(' ') || /[.?!]$/.test(String(target))) return 'sentence';
+  return 'word';
+}
+function passageLines(passage){return String(passage).split('\n').filter(Boolean);}
+function taeyoonPassageItem(target,variant,phase,choiceCount=3){
+  const data=passageUnderstanding[target] || {prompt:'짧은 글에서 가장 많이 나온 것은 무엇인가요?',answer:sentenceWords(target)[0],options:sentenceWords(target).slice(0,3)};
+  if(variant===0) return speakItem({phase,skillId:'read-passage-no-tts',targetId:target,display:target,word:'짧은 글 혼자 읽기',prompt:'두 문장을 차례로 천천히 읽어보세요.',speech:'짧은 글을 혼자 읽어보세요.'});
+  if(variant===1 || variant===4) return learningItem({phase,skillId:variant===4?'passage-challenge':'passage-understanding',targetId:target,display:target,word:data.prompt,prompt:'짧은 글을 읽고 질문에 답해보세요.',speech:'짧은 글을 읽고 질문에 답해보세요.',choices:stableChoices(data.answer,data.options,choiceCount).map(value=>itemChoice(value,value,value)),answer:data.answer,answerSpeech:'정답은 '+data.answer+'예요.'});
+  if(variant===2){
+    const words=sentenceWords(target);
+    const answer=words[0];
+    const pool=[...new Set(words.concat(['기차','우유','꽃','책']))];
+    return learningItem({phase,skillId:'passage-word-find',targetId:target,display:target,word:'글에 나온 낱말은?',prompt:'짧은 글에 나온 낱말을 찾아보세요.',speech:'짧은 글을 읽고 나온 낱말을 찾아보세요.',choices:stableChoices(answer,pool,choiceCount).map(value=>itemChoice(value,value,value)),answer,answerSpeech:answer+'가 글에 나왔어요.'});
+  }
+  const lines=passageLines(target);
+  const reversed=[...lines].reverse().join('\n');
+  const mixed=lines.length>1?lines[0]+'\n'+lines[0]:target;
+  return learningItem({phase,skillId:'passage-order',targetId:target,display:'문장 순서 맞추기',word:'바른 짧은 글은?',prompt:'두 문장의 순서가 자연스러운 글을 찾아보세요.',speech:'두 문장의 순서가 자연스러운 글을 찾아보세요.',choices:stableChoices(target,[target,reversed,mixed],choiceCount).map(value=>itemChoice(value,value,value)),answer:target,answerSpeech:'바른 순서로 읽어볼게요. '+target});
 }
 function evenlySpacedTargets(targets,count){
   if(targets.length<=count) return [...targets];
@@ -954,67 +1198,93 @@ function evenlySpacedTargets(targets,count){
     return targets[targetIndex];
   });
 }
-function buildTaeyoonItems(week,session,isReview){
-  const targets=isReview?evenlySpacedTargets(week.weeklyReview.targets,5):session.targets;
-  const stagePool=week.weeklyReview.targets;
-  const items=[];
-  const phase=isReview?'weekreview':'new';
-  if(week.stage==='consonant' || week.stage==='vowel'){
-    const maker=week.stage==='consonant'?taeyoonConsonantItem:taeyoonVowelItem;
-    const order=week.stage==='consonant'?consonantOrder:vowelOrder;
-    const primary=targets[0];
-    if(!isReview){
-      const sessionIndex=week.sessions.indexOf(session);
-      if(sessionIndex>0){
-        const previous=week.sessions[sessionIndex-1];
-        items.push(maker(previous.targets[previous.targets.length-1],2,'review',3));
-      }
-      items.push(maker(primary,0,phase,3));
+function rotatedTargets(targets,offset){
+  if(!targets.length) return [];
+  const start=offset%targets.length;
+  return targets.slice(start).concat(targets.slice(0,start));
+}
+function taeyoonPoolForKind(kind){
+  return [...new Set(courseFor('older').weeks.flatMap(week=>week.weeklyReview.targets).filter(target=>targetKind(target)===kind))];
+}
+function previousTaeyoonTargets(week,session){
+  const sessionIndex=week.sessions.indexOf(session);
+  if(sessionIndex>0) return week.sessions[sessionIndex-1].targets.slice(-2);
+  if(week.number>1) return courseFor('older').weeks[week.number-2].weeklyReview.targets.slice(-2);
+  return session.targets.slice(0,2);
+}
+function taeyoonReviewItem(target,index,phase){
+  const kind=targetKind(target);
+  const pool=taeyoonPoolForKind(kind);
+  if(kind==='passage') return taeyoonPassageItem(target,index%2,phase,3);
+  if(kind==='sentence') return taeyoonSentenceItem(target,pool,index===0?5:7,phase,3);
+  return taeyoonWordItem(target,pool,index===0?7:5,phase,3);
+}
+function writingTargetFor(target){
+  const kind=targetKind(target);
+  if(kind==='word') return target;
+  return sentenceWords(target).slice(0,2).join(' ');
+}
+function varyLearningItems(items,seedSource,variantIndex=0){
+  return items.map((item,index)=>{
+    const copy=Object.assign({},item);
+    if(Array.isArray(item.choices) && item.choices.length>1){
+      const baseOrder=shuffledWithSeed(item.choices,hashSeed(seedSource+'|'+index));
+      copy.choices=rotatedTargets(baseOrder,(variantIndex+index)%baseOrder.length);
     }
-    const variants=isReview?[1,2,3,5,1,3,4]:[1,2,3,5,1,4];
-    variants.forEach((variant,index)=>{
-      const target=targets[index%targets.length] || primary;
-      items.push(maker(target,variant,phase,index===3?4:3));
+    return copy;
+  });
+}
+function buildTaeyoonItems(week,session,isReview,variantIndex=0){
+  const baseTargets=isReview?evenlySpacedTargets(week.weeklyReview.targets,6):session.targets;
+  const targets=rotatedTargets(baseTargets,variantIndex);
+  const phase=isReview?'weekreview':'new';
+  const reviewPhase=isReview?'weekreview':'review';
+  const reviewTargets=rotatedTargets(isReview?targets:previousTaeyoonTargets(week,session),variantIndex);
+  const selected=Array.from({length:8},(_,index)=>targets[index%targets.length]);
+  const kind=targetKind(selected[0]);
+  const pool=[...new Set(targets.concat(taeyoonPoolForKind(kind)))];
+  const items=[
+    taeyoonReviewItem(reviewTargets[0] || selected[0],0,reviewPhase),
+    taeyoonReviewItem(reviewTargets[1] || reviewTargets[0] || selected[1],1,reviewPhase)
+  ];
+  let challenge=null;
+  if(week.stage==='integrated' && isReview){
+    selected.slice(0,7).forEach((target,index)=>{
+      const itemKind=targetKind(target);
+      const itemPool=taeyoonPoolForKind(itemKind);
+      if(itemKind==='passage') items.push(taeyoonPassageItem(target,[0,1,2,3][index%4],phase,index>=4?4:3));
+      else if(itemKind==='sentence') items.push(taeyoonSentenceItem(target,itemPool,[5,7,3,6][index%4],phase,index>=4?4:3));
+      else items.push(taeyoonWordItem(target,itemPool,[7,5,8,6][index%4],phase,index>=4?4:3));
     });
-    while(items.length<8) items.push(maker(primary,items.length%2?2:5,phase,4));
-    items.push(writingItem(primary,'trace',phase));
-  }else if(week.stage==='syllable'){
-    const selected=Array.from({length:6},(_,index)=>targets[index%targets.length]);
-    if(!isReview) items.push(taeyoonSyllableItem(selected[0],stagePool,0,phase));
-    items.push(taeyoonSyllableItem(selected[0],stagePool,1,phase,3));
-    items.push(taeyoonSyllableItem(selected[1],stagePool,2,phase,3));
-    items.push(taeyoonSyllableItem(selected[2],stagePool,3,phase,4));
-    items.push(taeyoonSyllableItem(selected[3],stagePool,4,phase,4));
-    items.push(taeyoonSyllableItem(selected[4],stagePool,5,phase,3));
-    items.push(taeyoonSyllableItem(selected[5],stagePool,1,phase,4));
-    items.push(speakItem({phase,skillId:'read-syllable-no-help',targetId:selected[0],display:selected[0],word:'혼자 음절 읽기',prompt:'글자를 보고 소리 내어 읽어보세요.',speech:'화면의 글자를 소리 내어 읽어보세요.'}));
-    items.push(writingItem(selected[0],'trace',phase));
-    items.push(writingItem(selected[1],'copy',phase));
-  }else if(week.stage==='word'){
-    const selected=Array.from({length:8},(_,index)=>targets[index%targets.length]);
-    items.push(taeyoonWordItem(selected[0],stagePool,7,phase));
-    items.push(taeyoonWordItem(selected[1],stagePool,1,phase,3));
-    items.push(taeyoonWordItem(selected[2],stagePool,2,phase,4));
-    items.push(taeyoonWordItem(selected[3],stagePool,3,phase,4));
-    items.push(taeyoonWordItem(selected[4],stagePool,4,phase,4));
-    items.push(taeyoonWordItem(selected[5],stagePool,5,phase,4));
-    items.push(taeyoonWordItem(selected[6],stagePool,6,phase,4));
-    items.push(taeyoonWordItem(selected[7],stagePool,7,phase));
-    items.push(writingItem(selected[0],'copy',phase));
+    const challengeTarget=selected[7];
+    const challengeKind=targetKind(challengeTarget);
+    const challengePool=taeyoonPoolForKind(challengeKind);
+    challenge=challengeKind==='passage'
+      ? taeyoonPassageItem(challengeTarget,4,phase,4)
+      : challengeKind==='sentence'
+        ? taeyoonSentenceItem(challengeTarget,challengePool,8,phase,4)
+        : taeyoonWordItem(challengeTarget,challengePool,9,phase,4);
+  }else if(kind==='word'){
+    [7,1,2,3,8,5,6].forEach((variant,index)=>{
+      items.push(taeyoonWordItem(selected[index],pool,variant,phase,index>=4?4:3));
+    });
+    challenge=taeyoonWordItem(selected[7],pool,9,phase,4);
+  }else if(kind==='sentence'){
+    [5,1,2,3,6,7,4].forEach((variant,index)=>{
+      items.push(taeyoonSentenceItem(selected[index],pool,variant,phase,index>=4?4:3));
+    });
+    challenge=taeyoonSentenceItem(selected[7],pool,8,phase,4);
   }else{
-    const selected=Array.from({length:8},(_,index)=>targets[index%targets.length]);
-    items.push(taeyoonSentenceItem(selected[0],stagePool,5,phase));
-    items.push(taeyoonSentenceItem(selected[1],stagePool,1,phase,3));
-    items.push(taeyoonSentenceItem(selected[2],stagePool,2,phase,3));
-    items.push(taeyoonSentenceItem(selected[3],stagePool,3,phase,4));
-    items.push(taeyoonSentenceItem(selected[4],stagePool,4,phase,4));
-    items.push(taeyoonSentenceItem(selected[5],stagePool,1,phase,4));
-    items.push(taeyoonSentenceItem(selected[6],stagePool,3,phase,3));
-    items.push(taeyoonSentenceItem(selected[7],stagePool,5,phase));
-    const phrase=sentenceWords(selected[0])[0] || selected[0];
-    items.push(writingItem(phrase,'copy',phase));
+    [0,1,2,3,1,2,1].forEach((variant,index)=>{
+      items.push(taeyoonPassageItem(selected[index],variant,phase,index>=4?4:3));
+    });
+    challenge=taeyoonPassageItem(selected[7],4,phase,4);
   }
-  return items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
+  items.push(writingItem(writingTargetFor(selected[0]),'copy',phase));
+  items.push(writingItem(writingTargetFor(selected[1]),'dictation',phase));
+  items.push(challenge);
+  const withIds=items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
+  return varyLearningItems(withIds,week.id+'|'+session.id+'|'+isReview,variantIndex);
 }
 function allYoungerEntries(){
   return Object.keys(pictureBank).map(entryFor).filter(entry=>entry.initial);
@@ -1060,8 +1330,9 @@ function youngerDifferentLetter(entry,phase,count){
   ].slice(0,count);
   return learningItem({phase,skillId:'different-letter',targetId:initial,display:initial,word:'서로 다른 글자는?',prompt:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',speech:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',choices,answer:'different',answerSpeech:spokenLetter(initial)+'과 '+spokenLetter(other)+'가 서로 달라요.'});
 }
-function buildYoungerItems(week,session,isReview,supportLevel){
-  const targets=isReview?week.weeklyReview.targets:session.targets;
+function buildYoungerItems(week,session,isReview,supportLevel,variantIndex=0){
+  const baseTargets=isReview?week.weeklyReview.targets:session.targets;
+  const targets=rotatedTargets(baseTargets,variantIndex);
   const entries=youngerEntriesFor(targets);
   const phase=isReview?'weekreview':'new';
   const choiceCount=supportLevel==='picture-first'?2:3;
@@ -1082,15 +1353,16 @@ function buildYoungerItems(week,session,isReview,supportLevel){
           : youngerInitialExposure(selected[6],phase),
     writingItem(selected[0].initial || 'ㄱ','trace',phase)
   ];
-  return items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
+  const withIds=items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
+  return varyLearningItems(withIds,week.id+'|'+session.id+'|'+isReview,variantIndex);
 }
 function supportLevelFor(profile){
   return profile.placement.result && profile.placement.result.supportLevel || 'picture-first';
 }
-function buildCourseItems(child,week,session,isReview,profile){
+function buildCourseItems(child,week,session,isReview,profile,variantIndex=0){
   return child==='older'
-    ? buildTaeyoonItems(week,session,isReview)
-    : buildYoungerItems(week,session,isReview,supportLevelFor(profile));
+    ? buildTaeyoonItems(week,session,isReview,variantIndex)
+    : buildYoungerItems(week,session,isReview,supportLevelFor(profile),variantIndex);
 }
 function startCourseSession(child,weekNumber,sessionNumber,replay=false){
   const data=store();
@@ -1105,7 +1377,9 @@ function startCourseSession(child,weekNumber,sessionNumber,replay=false){
   state.sessionNumber=sessionNumber;
   state.activityId=sessionActivityId(child,weekNumber,sessionNumber);
   state.replay=Boolean(replay || weekNumber!==profile.progress.currentWeek || sessionNumber!==profile.progress.currentSession);
-  state.items=buildCourseItems(child,week,session,false,profile);
+  const previous=profile.progress.completedSessions[state.activityId];
+  state.variantIndex=previous && previous.completed?safeCount(previous.attempts):0;
+  state.items=buildCourseItems(child,week,session,false,profile,state.variantIndex);
   begin();
 }
 function startWeekPractice(child,weekNumber){
@@ -1125,8 +1399,10 @@ function startWeeklyReview(child=state.child,weekNumber){
   state.weekNumber=weekNumber;
   state.sessionNumber=null;
   state.activityId=reviewActivityId(child,weekNumber);
-  state.replay=Boolean((profile.progress.weeklyReviews[state.activityId] || {}).completed);
-  state.items=buildCourseItems(child,week,week.weeklyReview,true,profile);
+  const previous=profile.progress.weeklyReviews[state.activityId];
+  state.replay=Boolean((previous || {}).completed);
+  state.variantIndex=previous && previous.completed?safeCount(previous.attempts):0;
+  state.items=buildCourseItems(child,week,week.weeklyReview,true,profile,state.variantIndex);
   begin();
 }
 function begin(){
@@ -1164,15 +1440,26 @@ function setDrawingTool(tool){
 }
 function prepareDrawing(item){
   const guide=document.getElementById('writingGuide');
-  guide.textContent=item.writingTarget || item.targetId;
+  const dictation=item.writingMode==='dictation';
+  guide.textContent=dictation?'':item.writingTarget || item.targetId;
   guide.classList.toggle('copy',item.writingMode==='copy');
   if((item.writingTarget || '').length>=4) guide.style.fontSize=item.writingMode==='copy'?'clamp(32px,7vw,58px)':'clamp(64px,14vw,116px)';
   else guide.style.fontSize='';
-  document.getElementById('writingStatus').textContent=item.writingMode==='copy'
-    ? '위 글자를 보고 아래 빈 곳에 써보세요.'
-    : '연한 가이드 위를 따라 써보세요.';
+  document.getElementById('writingStatus').textContent=dictation
+    ? '소리를 듣고 써보세요. 다 쓴 뒤 정답을 확인해요.'
+    : item.writingMode==='copy'
+      ? '위 글자를 보고 아래 빈 곳에 충분히 크게 써보세요.'
+      : '연한 가이드 위를 따라 충분히 크게 써보세요.';
+  const revealButton=document.getElementById('revealWritingAnswer');
+  revealButton.hidden=!dictation;
+  revealButton.disabled=true;
   drawingUi.activeItemId=item.itemId;
   drawingUi.inkDistance=0;
+  drawingUi.strokeDistance=0;
+  drawingUi.strokeCount=0;
+  drawingUi.bounds=null;
+  drawingUi.metricsReady=false;
+  drawingUi.answerRevealed=false;
   drawingUi.drawing=false;
   drawingUi.lastPoint=null;
   state.answered=false;
@@ -1198,6 +1485,61 @@ function beginDrawing(event){
   try{canvas.setPointerCapture(event.pointerId);}catch(error){}
   drawingUi.drawing=true;
   drawingUi.lastPoint=drawingPoint(event);
+  drawingUi.strokeDistance=0;
+  if(drawingUi.tool==='pen') includeDrawingPoint(drawingUi.lastPoint);
+}
+function includeDrawingPoint(point){
+  if(!drawingUi.bounds){
+    drawingUi.bounds={minX:point.x,maxX:point.x,minY:point.y,maxY:point.y};
+    return;
+  }
+  drawingUi.bounds.minX=Math.min(drawingUi.bounds.minX,point.x);
+  drawingUi.bounds.maxX=Math.max(drawingUi.bounds.maxX,point.x);
+  drawingUi.bounds.minY=Math.min(drawingUi.bounds.minY,point.y);
+  drawingUi.bounds.maxY=Math.max(drawingUi.bounds.maxY,point.y);
+}
+function drawingMetricsReady(){
+  if(!drawingUi.bounds) return false;
+  const width=drawingUi.bounds.maxX-drawingUi.bounds.minX;
+  const height=drawingUi.bounds.maxY-drawingUi.bounds.minY;
+  const limits=state.child==='younger'
+    ? {strokes:1,distance:80,width:35,height:30}
+    : {strokes:2,distance:120,width:45,height:35};
+  return drawingUi.strokeCount>=limits.strokes && drawingUi.inkDistance>=limits.distance && width>=limits.width && height>=limits.height;
+}
+function updateDrawingCompletion(){
+  const item=state.items[state.index];
+  if(!item || item.type!=='drawing') return;
+  drawingUi.metricsReady=drawingMetricsReady();
+  const revealButton=document.getElementById('revealWritingAnswer');
+  const nextButton=document.getElementById('nextBtn');
+  if(!drawingUi.metricsReady){
+    nextButton.disabled=true;
+    if(item.writingMode==='dictation') revealButton.disabled=true;
+    return;
+  }
+  if(item.writingMode==='dictation' && !drawingUi.answerRevealed){
+    state.answered=false;
+    revealButton.disabled=false;
+    nextButton.disabled=true;
+    document.getElementById('writingStatus').textContent='잘 썼어요! 이제 정답을 눌러 비교해보세요.';
+    return;
+  }
+  state.answered=true;
+  nextButton.disabled=false;
+  document.getElementById('writingStatus').textContent='좋아요! 글자 크기만큼 충분히 써보았어요. ✨';
+}
+function revealWritingAnswer(){
+  const item=state.items[state.index];
+  if(!item || item.type!=='drawing' || item.writingMode!=='dictation' || !drawingUi.metricsReady) return;
+  const guide=document.getElementById('writingGuide');
+  guide.textContent=item.writingTarget || item.targetId;
+  guide.classList.add('copy');
+  if((item.writingTarget || '').length>=4) guide.style.fontSize='clamp(32px,7vw,58px)';
+  drawingUi.answerRevealed=true;
+  document.getElementById('revealWritingAnswer').disabled=true;
+  updateDrawingCompletion();
+  speak(item.writingTarget || item.targetId);
 }
 function moveDrawing(event){
   if(!drawingUi.drawing || !drawingUi.lastPoint) return;
@@ -1213,19 +1555,22 @@ function moveDrawing(event){
   context.lineTo(point.x,point.y);
   context.stroke();
   const distance=Math.hypot(point.x-previous.x,point.y-previous.y);
-  if(drawingUi.tool==='pen') drawingUi.inkDistance+=distance;
-  drawingUi.lastPoint=point;
-  if(!state.answered && drawingUi.inkDistance>=24){
-    state.answered=true;
-    document.getElementById('nextBtn').disabled=false;
-    document.getElementById('writingStatus').textContent='좋아요! 더 써보거나 다음으로 넘어가세요. ✨';
+  if(drawingUi.tool==='pen'){
+    drawingUi.inkDistance+=distance;
+    drawingUi.strokeDistance+=distance;
+    includeDrawingPoint(previous);
+    includeDrawingPoint(point);
   }
+  drawingUi.lastPoint=point;
 }
 function endDrawing(event){
   if(!drawingUi.drawing) return;
+  if(drawingUi.tool==='pen' && drawingUi.strokeDistance>=12) drawingUi.strokeCount++;
   drawingUi.drawing=false;
   drawingUi.lastPoint=null;
+  drawingUi.strokeDistance=0;
   try{event.currentTarget.releasePointerCapture(event.pointerId);}catch(error){}
+  updateDrawingCompletion();
 }
 function initializeDrawingCanvas(){
   const canvas=document.getElementById('writingCanvas');
@@ -1421,7 +1766,7 @@ function parentPlacementStatus(profile,child){
     const diagnosticText=diagnostic && diagnostic.asked
       ? ' · 받침 진단 '+diagnostic.correct+'/'+diagnostic.asked
       : '';
-    return (result.allPassed?'문장 단계 준비됨 · 8주차':'테스트 결과 · '+(result.startWeek||1)+'주차 시작')+diagnosticText;
+    return (result.allPassed?'짧은 글 이해 준비됨 · 8주차':'테스트 결과 · '+(result.startWeek||1)+'주차 시작')+diagnosticText;
   }
   return '테스트 결과 · '+supportLevelLabel(result.supportLevel)+' · 1주차';
 }

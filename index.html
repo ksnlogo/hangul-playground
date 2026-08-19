@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="한글 놀이터" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
-<title>우리 아이 한글 놀이터 v0.5-C</title>
+<title>우리 아이 한글 놀이터 v0.5-D</title>
 <style>
   :root{
     --bg:#FFF8EE;
@@ -349,6 +349,7 @@
             <button id="penTool" type="button" class="tool-btn active" onclick="setDrawingTool('pen')" aria-pressed="true">✏️ 펜</button>
             <button id="eraserTool" type="button" class="tool-btn" onclick="setDrawingTool('eraser')" aria-pressed="false">🧽 지우기</button>
             <button type="button" class="tool-btn" onclick="resetDrawing()">↺ 다시쓰기</button>
+            <button id="revealWritingAnswer" type="button" class="tool-btn" onclick="revealWritingAnswer()" hidden disabled>👀 정답 보기</button>
           </div>
           <div id="writingStatus" class="writing-status">가이드 위를 따라 써보세요.</div>
         </div>
