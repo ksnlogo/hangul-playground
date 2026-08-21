@@ -15,6 +15,9 @@
   const question=(id,type,display,prompt,speech,choices,answer)=>({
     id,type,display,prompt,speech,choices,answer
   });
+  const diagnosticQuestion=(id,type,display,prompt,speech,choices,answer,metadata)=>(
+    Object.assign(question(id,type,display,prompt,speech,choices,answer),metadata)
+  );
 
   const taeyoonWeeks=[
     week(1,'받침 없는 낱말 읽기와 쓰기','word-basic',[
@@ -133,6 +136,17 @@
       session('session-5','내가 좋아하는 한글 놀이',['가족','동물','탈것','음식','몸','장난감'],['picture-find','picture-word','same-initial'])
     ],weeklyReview(['가족','동물','탈것','음식','몸','장난감','첫 글자'],['picture-find','picture-word','same-initial']))
   ];
+
+  const jaeyoonProgression={
+    1:{level:'picture-foundation',skills:['sound-picture','picture-word','word-exposure'],writing:'initial-consonant'},
+    2:{level:'picture-foundation',skills:['sound-picture','picture-word','word-exposure'],writing:'initial-consonant'},
+    3:{level:'sound-word-link',skills:['picture-word','sound-word','picture-first-syllable','same-initial'],writing:'first-syllable'},
+    4:{level:'sound-word-link',skills:['picture-word','sound-word','picture-first-syllable','same-initial'],writing:'first-syllable'},
+    5:{level:'word-discrimination',skills:['sound-word','sound-first-syllable','similar-word','word-completion'],writing:'single-syllable'},
+    6:{level:'word-discrimination',skills:['sound-word','sound-first-syllable','similar-word','word-completion'],writing:'single-syllable'},
+    7:{level:'audio-word-challenge',skills:['audio-word','first-syllable-category','word-completion'],writing:'familiar-word'},
+    8:{level:'audio-word-challenge',skills:['audio-word','first-syllable-category','word-completion'],writing:'familiar-word'}
+  };
 
   const stage=(id,label,questionBank,options={})=>Object.assign({id,label,sampleCount:3,questionBank},options);
   const wordPicture=(id,word,options,answer)=>question(
@@ -262,50 +276,61 @@
     ]
   };
 
-  const jaeyoonPictureBank=[
-    question('j-p-01','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','엄마. 엄마 그림을 찾아보세요.',[choice('mom','👩','엄마'),choice('dog','🐶','강아지'),choice('bus','🚌','버스')],'mom'),
-    question('j-p-02','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','고양이. 고양이 그림을 찾아보세요.',[choice('cat','🐱','고양이'),choice('apple','🍎','사과'),choice('ball','⚽','공')],'cat'),
-    question('j-p-03','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','사과. 사과 그림을 찾아보세요.',[choice('rabbit','🐰','토끼'),choice('apple','🍎','사과'),choice('car','🚗','자동차')],'apple'),
-    question('j-p-04','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','기차. 기차 그림을 찾아보세요.',[choice('train','🚂','기차'),choice('milk','🥛','우유'),choice('hat','👒','모자')],'train'),
-    question('j-p-05','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','공. 공 그림을 찾아보세요.',[choice('book','📚','책'),choice('ball','⚽','공'),choice('lion','🦁','사자')],'ball'),
-    question('j-p-06','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','토끼. 토끼 그림을 찾아보세요.',[choice('rabbit','🐰','토끼'),choice('bus','🚌','버스'),choice('banana','🍌','바나나')],'rabbit'),
-    question('j-p-07','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','우유. 우유 그림을 찾아보세요.',[choice('bread','🍞','빵'),choice('milk','🥛','우유'),choice('robot','🤖','로봇')],'milk'),
-    question('j-p-08','sound-picture','🔊','소리를 듣고 알맞은 그림을 찾아보세요.','모자. 모자 그림을 찾아보세요.',[choice('hat','👒','모자'),choice('car','🚗','자동차'),choice('dog','🐶','강아지')],'hat')
+  const jaeyoonPictureWordBank=[
+    diagnosticQuestion('j-ptw-01','picture-to-word','🚂','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('기차','기차'),choice('모자','모자'),choice('우유','우유')],'기차',{targetWord:'기차',cue:'picture'}),
+    diagnosticQuestion('j-ptw-02','picture-to-word','👒','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('모자','모자'),choice('사과','사과'),choice('버스','버스')],'모자',{targetWord:'모자',cue:'picture'}),
+    diagnosticQuestion('j-ptw-03','picture-to-word','🥛','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('우유','우유'),choice('토끼','토끼'),choice('가방','가방')],'우유',{targetWord:'우유',cue:'picture'}),
+    diagnosticQuestion('j-ptw-04','picture-to-word','🍎','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('사과','사과'),choice('기차','기차'),choice('로봇','로봇')],'사과',{targetWord:'사과',cue:'picture'}),
+    diagnosticQuestion('j-ptw-05','picture-to-word','🐰','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('토끼','토끼'),choice('우유','우유'),choice('책','책')],'토끼',{targetWord:'토끼',cue:'picture'}),
+    diagnosticQuestion('j-ptw-06','picture-to-word','⚽','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('공','공'),choice('빵','빵'),choice('눈','눈')],'공',{targetWord:'공',cue:'picture'}),
+    diagnosticQuestion('j-ptw-07','picture-to-word','📚','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('책','책'),choice('발','발'),choice('배','배')],'책',{targetWord:'책',cue:'picture'}),
+    diagnosticQuestion('j-ptw-08','picture-to-word','🤖','그림 이름을 찾아보세요.','그림을 보고 알맞은 낱말을 찾아보세요.',[choice('로봇','로봇'),choice('사자','사자'),choice('문','문')],'로봇',{targetWord:'로봇',cue:'picture'})
   ];
-  const jaeyoonSoundInitialBank=[
-    question('j-si-01','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','기차. 기차의 첫 글자를 찾아보세요.',[choice('ㄱ','ㄱ','기역'),choice('ㅂ','ㅂ','비읍'),choice('ㅅ','ㅅ','시옷')],'ㄱ'),
-    question('j-si-02','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','모자. 모자의 첫 글자를 찾아보세요.',[choice('ㄴ','ㄴ','니은'),choice('ㅁ','ㅁ','미음'),choice('ㄷ','ㄷ','디귿')],'ㅁ'),
-    question('j-si-03','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','사자. 사자의 첫 글자를 찾아보세요.',[choice('ㅈ','ㅈ','지읒'),choice('ㅅ','ㅅ','시옷'),choice('ㄱ','ㄱ','기역')],'ㅅ'),
-    question('j-si-04','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','바나나. 바나나의 첫 글자를 찾아보세요.',[choice('ㅁ','ㅁ','미음'),choice('ㅂ','ㅂ','비읍'),choice('ㄴ','ㄴ','니은')],'ㅂ'),
-    question('j-si-05','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','토끼. 토끼의 첫 글자를 찾아보세요.',[choice('ㅌ','ㅌ','티읕'),choice('ㅋ','ㅋ','키읔'),choice('ㄷ','ㄷ','디귿')],'ㅌ'),
-    question('j-si-06','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','로봇. 로봇의 첫 글자를 찾아보세요.',[choice('ㄴ','ㄴ','니은'),choice('ㄹ','ㄹ','리을'),choice('ㅁ','ㅁ','미음')],'ㄹ'),
-    question('j-si-07','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','책. 책의 첫 글자를 찾아보세요.',[choice('ㅊ','ㅊ','치읓'),choice('ㅈ','ㅈ','지읒'),choice('ㅌ','ㅌ','티읕')],'ㅊ'),
-    question('j-si-08','sound-initial','🔊','소리를 듣고 첫 글자를 찾아보세요.','공. 공의 첫 글자를 찾아보세요.',[choice('ㄷ','ㄷ','디귿'),choice('ㅅ','ㅅ','시옷'),choice('ㄱ','ㄱ','기역')],'ㄱ')
+  const jaeyoonSoundWordBank=[
+    diagnosticQuestion('j-stw-01','sound-to-word','🔊','들은 낱말을 찾아보세요.','바나나. 들은 낱말을 찾아보세요.',[choice('바나나','바나나'),choice('자동차','자동차'),choice('사과','사과')],'바나나',{targetWord:'바나나',cue:'sound'}),
+    diagnosticQuestion('j-stw-02','sound-to-word','🔊','들은 낱말을 찾아보세요.','자동차. 들은 낱말을 찾아보세요.',[choice('자동차','자동차'),choice('강아지','강아지'),choice('모자','모자')],'자동차',{targetWord:'자동차',cue:'sound'}),
+    diagnosticQuestion('j-stw-03','sound-to-word','🔊','들은 낱말을 찾아보세요.','강아지. 들은 낱말을 찾아보세요.',[choice('강아지','강아지'),choice('고양이','고양이'),choice('기차','기차')],'강아지',{targetWord:'강아지',cue:'sound'}),
+    diagnosticQuestion('j-stw-04','sound-to-word','🔊','들은 낱말을 찾아보세요.','버스. 들은 낱말을 찾아보세요.',[choice('버스','버스'),choice('우유','우유'),choice('로봇','로봇')],'버스',{targetWord:'버스',cue:'sound'}),
+    diagnosticQuestion('j-stw-05','sound-to-word','🔊','들은 낱말을 찾아보세요.','고양이. 들은 낱말을 찾아보세요.',[choice('고양이','고양이'),choice('토끼','토끼'),choice('가방','가방')],'고양이',{targetWord:'고양이',cue:'sound'}),
+    diagnosticQuestion('j-stw-06','sound-to-word','🔊','들은 낱말을 찾아보세요.','빵. 들은 낱말을 찾아보세요.',[choice('빵','빵'),choice('공','공'),choice('책','책')],'빵',{targetWord:'빵',cue:'sound'}),
+    diagnosticQuestion('j-stw-07','sound-to-word','🔊','들은 낱말을 찾아보세요.','사자. 들은 낱말을 찾아보세요.',[choice('사자','사자'),choice('모자','모자'),choice('우유','우유')],'사자',{targetWord:'사자',cue:'sound'}),
+    diagnosticQuestion('j-stw-08','sound-to-word','🔊','들은 낱말을 찾아보세요.','가방. 들은 낱말을 찾아보세요.',[choice('가방','가방'),choice('기차','기차'),choice('사과','사과')],'가방',{targetWord:'가방',cue:'sound'})
+  ];
+  const jaeyoonSoundFirstSyllableBank=[
+    diagnosticQuestion('j-sfs-01','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','기차. 첫 글자를 찾아보세요.',[choice('기','기'),choice('모','모'),choice('사','사')],'기',{targetWord:'기차',targetSyllable:'기',cue:'sound'}),
+    diagnosticQuestion('j-sfs-02','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','모자. 첫 글자를 찾아보세요.',[choice('모','모'),choice('나','나'),choice('우','우')],'모',{targetWord:'모자',targetSyllable:'모',cue:'sound'}),
+    diagnosticQuestion('j-sfs-03','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','사과. 첫 글자를 찾아보세요.',[choice('사','사'),choice('자','자'),choice('바','바')],'사',{targetWord:'사과',targetSyllable:'사',cue:'sound'}),
+    diagnosticQuestion('j-sfs-04','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','바나나. 첫 글자를 찾아보세요.',[choice('바','바'),choice('기','기'),choice('토','토')],'바',{targetWord:'바나나',targetSyllable:'바',cue:'sound'}),
+    diagnosticQuestion('j-sfs-05','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','토끼. 첫 글자를 찾아보세요.',[choice('토','토'),choice('코','코'),choice('로','로')],'토',{targetWord:'토끼',targetSyllable:'토',cue:'sound'}),
+    diagnosticQuestion('j-sfs-06','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','로봇. 첫 글자를 찾아보세요.',[choice('로','로'),choice('모','모'),choice('오','오')],'로',{targetWord:'로봇',targetSyllable:'로',cue:'sound'}),
+    diagnosticQuestion('j-sfs-07','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','책. 첫 글자를 찾아보세요.',[choice('책','책'),choice('배','배'),choice('공','공')],'책',{targetWord:'책',targetSyllable:'책',cue:'sound'}),
+    diagnosticQuestion('j-sfs-08','sound-to-first-syllable','🔊','들은 낱말의 첫 글자를 찾아보세요.','우유. 첫 글자를 찾아보세요.',[choice('우','우'),choice('오','오'),choice('아','아')],'우',{targetWord:'우유',targetSyllable:'우',cue:'sound'})
   ];
   const jaeyoonSameInitialBank=[
-    question('j-sm-01','same-initial','👒 모자','모자와 같은 첫 글자로 시작하는 그림을 찾아보세요.','모자와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('water','💧 물','물'),choice('dog','🐶 강아지','강아지'),choice('bread','🍞 빵','빵')],'water'),
-    question('j-sm-02','same-initial','🚌 버스','버스와 같은 첫 글자로 시작하는 그림을 찾아보세요.','버스와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('apple','🍎 사과','사과'),choice('banana','🍌 바나나','바나나'),choice('hat','👒 모자','모자')],'banana'),
-    question('j-sm-03','same-initial','🐶 강아지','강아지와 같은 첫 글자로 시작하는 그림을 찾아보세요.','강아지와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('train','🚂 기차','기차'),choice('rabbit','🐰 토끼','토끼'),choice('lion','🦁 사자','사자')],'train'),
-    question('j-sm-04','same-initial','🐰 토끼','토끼와 같은 첫 글자로 시작하는 그림을 찾아보세요.','토끼와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('nose','👃 코','코'),choice('car','🚗 자동차','자동차'),choice('grape','🍇 포도','포도')],'nose'),
-    question('j-sm-05','same-initial','🦁 사자','사자와 같은 첫 글자로 시작하는 그림을 찾아보세요.','사자와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('hand','✋ 손','손'),choice('train','🚂 기차','기차'),choice('milk','🥛 우유','우유')],'hand'),
-    question('j-sm-06','same-initial','📚 책','책과 같은 첫 글자로 시작하는 그림을 찾아보세요.','책과 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('car','🚗 자동차','자동차'),choice('hat','👒 모자','모자'),choice('grape','🍇 포도','포도')],'car'),
-    question('j-sm-07','same-initial','🍌 바나나','바나나와 같은 첫 글자로 시작하는 그림을 찾아보세요.','바나나와 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('bus','🚌 버스','버스'),choice('lion','🦁 사자','사자'),choice('rabbit','🐰 토끼','토끼')],'bus'),
-    question('j-sm-08','same-initial','🤖 로봇','로봇과 같은 첫 글자로 시작하는 그림을 찾아보세요.','로봇과 같은 첫 글자로 시작하는 그림을 찾아보세요.',[choice('tree','🌳 나무','나무'),choice('leg','🦵 다리','다리'),choice('banana','🍌 바나나','바나나')],'leg')
+    diagnosticQuestion('j-sis-01','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','모자. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('물','💧','물'),choice('강아지','🐶','강아지'),choice('빵','🍞','빵')],'물',{targetWord:'모자',answerWord:'물',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-02','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','토끼. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('토마토','🍅','토마토'),choice('코','👃','코'),choice('사과','🍎','사과')],'토마토',{targetWord:'토끼',answerWord:'토마토',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-03','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','책. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('치마','👗','치마'),choice('자동차','🚗','자동차'),choice('모자','👒','모자')],'치마',{targetWord:'책',answerWord:'치마',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-04','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','로봇. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('라디오','📻','라디오'),choice('다리','🦵','다리'),choice('가방','🎒','가방')],'라디오',{targetWord:'로봇',answerWord:'라디오',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-05','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','기차. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('강아지','🐶','강아지'),choice('모자','👒','모자'),choice('사과','🍎','사과')],'강아지',{targetWord:'기차',answerWord:'강아지',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-06','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','바나나. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('버스','🚌','버스'),choice('사과','🍎','사과'),choice('모자','👒','모자')],'버스',{targetWord:'바나나',answerWord:'버스',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-07','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','사자. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('손','✋','손'),choice('기차','🚂','기차'),choice('우유','🥛','우유')],'손',{targetWord:'사자',answerWord:'손',relation:'same-initial',cue:'sound'}),
+    diagnosticQuestion('j-sis-08','same-initial-sound','🔊','같은 첫소리로 시작하는 그림을 찾아보세요.','우유. 같은 첫소리로 시작하는 그림을 찾아보세요.',[choice('오리','🦆','오리'),choice('나비','🦋','나비'),choice('모자','👒','모자')],'오리',{targetWord:'우유',answerWord:'오리',relation:'same-initial',cue:'sound'})
   ];
   const jaeyoonTest={
-    id:'jaeyoon-placement-v5',
+    id:'jaeyoon-placement-v6',
     title:'재윤 한글 놀이 레벨테스트',
-    estimatedMinutes:3,
-    maxQuestions:9,
+    estimatedMinutes:4,
+    maxQuestions:12,
     stages:[
-      stage('picture-find','소리 듣고 그림 찾기',jaeyoonPictureBank,{supportLevelOnFail:'picture-first'}),
-      stage('sound-link','소리와 첫 글자 연결',jaeyoonSoundInitialBank,{supportLevelOnFail:'sound-link'}),
-      stage('initial-experience','같은 첫 글자 찾기',jaeyoonSameInitialBank,{supportLevelOnFail:'initial-intro'})
+      stage('picture-to-word','그림 보고 낱말 찾기',jaeyoonPictureWordBank,{supportLevelOnFail:'picture-first'}),
+      stage('sound-to-word','소리 듣고 낱말 찾기',jaeyoonSoundWordBank,{supportLevelOnFail:'sound-link'}),
+      stage('sound-to-first-syllable','소리 듣고 첫 글자 찾기',jaeyoonSoundFirstSyllableBank,{supportLevelOnFail:'initial-intro'}),
+      stage('same-initial-sound','같은 첫소리 찾기',jaeyoonSameInitialBank,{supportLevelOnFail:'initial-intro'})
     ]
   };
 
   window.HANGUL_CURRICULUM={
-    version:'0.5-D.1',
+    version:'0.5-D.2',
     letterSpeech:{
       'ㄱ':'기역','ㄴ':'니은','ㄷ':'디귿','ㄹ':'리을','ㅁ':'미음','ㅂ':'비읍','ㅅ':'시옷',
       'ㅇ':'이응','ㅈ':'지읒','ㅊ':'치읓','ㅋ':'키읔','ㅌ':'티읕','ㅍ':'피읖','ㅎ':'히읗',
@@ -319,7 +344,10 @@
           strategy:'word-to-syllable-to-jamo'
         }
       },
-      younger:{id:'jaeyoon-play-v1',learnerKey:'younger',name:'재윤 한글 놀이 코스',weeks:jaeyoonWeeks}
+      younger:{
+        id:'jaeyoon-play-v1',learnerKey:'younger',name:'재윤 한글 놀이 코스',weeks:jaeyoonWeeks,
+        progression:jaeyoonProgression
+      }
     },
     levelTests:{older:taeyoonTest,younger:jaeyoonTest}
   };

@@ -21,8 +21,12 @@ let state={
 let placementUi={waiting:false,finished:false};
 let drawingUi={
   tool:'pen',drawing:false,lastPoint:null,inkDistance:0,strokeDistance:0,strokeCount:0,
-  bounds:null,metricsReady:false,answerRevealed:false,activeItemId:null
+  bounds:null,metricsReady:false,answerRevealed:false,activeItemId:null,pointerId:null,
+  segments:[],nextStrokeId:1,activeStrokeId:null,pendingResize:false,hasInk:false,
+  cssWidth:0,cssHeight:0,dpr:1,lastEvent:'idle',pointerDownCount:0,pointerMoveCount:0,
+  pointerEndCount:0,processedPointCount:0,pointerDownActivated:false
 };
+let drawingResizeTimer=null;
 
 const STORAGE_KEY='hangulPlaygroundV05';
 const V04_STORAGE_KEY='hangulPlaygroundV04';
@@ -608,7 +612,7 @@ function showPlacementIntro(child,profile){
   document.getElementById('placementIntroTitle').textContent=childName(child)+' 레벨테스트';
   document.getElementById('placementIntroText').textContent=isOlder
     ? '받침 없는 낱말부터 다양한 받침, 낱말 완성, 문장과 짧은 글 이해까지 확인해요. 첫 낱말 단계가 어려울 때만 음절과 자모를 보충 진단합니다.'
-    : '그림과 소리를 이용한 놀이로 어떤 도움이 편한지 확인해요. 글자를 읽어야 풀 수 있는 문제는 없어요.';
+    : '그림·소리와 익숙한 낱말 모양, 첫 글자를 연결하며 어떤 도움이 편한지 확인해요.';
   document.getElementById('placementResumeNote').hidden=!inProgress;
   document.getElementById('placementStartButton').textContent=inProgress?'이어서 하기':'레벨테스트 시작';
   show('placementIntro');
@@ -965,6 +969,7 @@ const pictureBank={
   '밥':'🍚','사과':'🍎','바나나':'🍌','우유':'🥛','빵':'🍞','오이':'🥒','멜론':'🍈',
   '눈':'👁️','코':'👃','입':'👄','손':'✋','발':'🦶','다리':'🦵',
   '공':'⚽','로봇':'🤖','책':'📚','가방':'🎒','모자':'👒','문':'🚪','물':'💧','달':'🌙','비누':'🧼','나무':'🌳','바다':'🌊','포도':'🍇','하마':'🦛',
+  '토마토':'🍅','치마':'👗','라디오':'📻','기린':'🦒','모기':'🦟','우산':'☂️','로켓':'🚀','책상':'🪑','강물':'🏞️','가위':'✂️','버섯':'🍄','공원':'🏞️','코끼리':'🐘','입술':'👄','손가락':'☝️','발바닥':'🦶',
   '집':'🏠','옷':'👕','꽃':'🌼','산':'⛰️','밤':'🌙','별':'⭐','빛':'💡','약':'💊','눈물':'💧',
   '가족':'👨‍👩‍👦','동물':'🐾','탈것':'🚙','음식':'🍽️','몸':'🙋','생활물건':'🎒','장난감':'🧸','첫 글자':'🔤'
 };
@@ -1289,70 +1294,182 @@ function buildTaeyoonItems(week,session,isReview,variantIndex=0){
 function allYoungerEntries(){
   return Object.keys(pictureBank).map(entryFor).filter(entry=>entry.initial);
 }
-function youngerEntriesFor(targets){
-  return targets.map(target=>{
-    if(consonantOrder.includes(target)) return entryFor(consonantExamples[target] || '기차');
-    return entryFor(target);
-  });
+const youngerThemeTargets={
+  '가족':['엄마','아빠','태윤','재윤','아기'],
+  '동물':['강아지','고양이','토끼','사자','원숭이'],
+  '탈것':['자동차','버스','기차','비행기','배'],
+  '음식':['밥','사과','바나나','우유','빵'],
+  '몸':['눈','코','입','손','발'],
+  '생활물건':['책','가방','모자','문'],
+  '장난감':['공','로봇','책'],
+  '첫 글자':['기차','모자','버스','사자']
+};
+const youngerCompletionWords={
+  '눈':'눈물','코':'코끼리','입':'입술','손':'손가락','발':'발바닥',
+  '공':'공원','책':'책상'
+};
+const youngerSyllablePeers={
+  '기차':'기린','모자':'모기','사자':'사과','바나나':'바다','토끼':'토마토','우유':'우산',
+  '로봇':'로켓','책':'책상','강아지':'강물','가방':'가위','버스':'버섯','공':'공원',
+  '눈':'눈물','코':'코끼리','입':'입술','손':'손가락','발':'발바닥'
+};
+function firstSyllable(word){
+  return Array.from(String(word || ''))[0] || '';
 }
-function youngerChoiceEntries(answer,count,requireDifferentInitial=false){
-  const pool=allYoungerEntries().filter(entry=>entry.word!==answer.word && (!requireDifferentInitial || entry.initial!==answer.initial));
+function uniqueYoungerEntries(entries){
+  const seen=new Set();
+  return entries.filter(entry=>entry && entry.word && !seen.has(entry.word) && seen.add(entry.word));
+}
+function youngerEntriesFor(targets){
+  return uniqueYoungerEntries(targets.flatMap(target=>{
+    if(consonantOrder.includes(target)) return [entryFor(consonantExamples[target] || '기차')];
+    if(youngerThemeTargets[target]) return youngerThemeTargets[target].map(entryFor);
+    return [entryFor(target)];
+  }));
+}
+function youngerChoiceEntries(answer,count,filter=()=>true){
+  const pool=allYoungerEntries().filter(entry=>entry.word!==answer.word && filter(entry));
   const words=stableChoices(answer.word,pool.map(entry=>entry.word),count);
   return words.map(word=>word===answer.word?answer:pool.find(entry=>entry.word===word)).filter(Boolean);
 }
-function youngerPictureFind(entry,phase,count){
-  const options=youngerChoiceEntries(entry,count,true);
-  return learningItem({phase,skillId:'sound-picture',targetId:entry.word,display:'🔊',word:'들은 낱말은?',prompt:'소리를 듣고 알맞은 그림을 찾아보세요.',speech:entry.word+'. 알맞은 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:entry.word,answerSpeech:entry.word+'를 찾았어요!'});
+function youngerSoundPicture(entry,phase,count){
+  const options=youngerChoiceEntries(entry,count,value=>value.initial!==entry.initial);
+  return learningItem({phase,skillId:'sound-picture',targetId:entry.word,display:'🔊',word:'들은 낱말은?',prompt:'소리를 듣고 알맞은 그림을 찾아보세요.',speech:entry.word+'. 알맞은 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:entry.word,answerSpeech:entry.word+'를 찾았어요!',cue:'sound'});
 }
 function youngerPictureWord(entry,phase){
   return infoItem({phase,skillId:'picture-word',targetId:entry.word,emoji:entry.emoji,display:'',word:entry.word,prompt:'그림, 소리, 낱말 모양을 함께 만나봐요.',speech:entry.word+'. 같이 말해볼까요?'});
 }
-function youngerInitialExposure(entry,phase){
-  const initial=entry.initial || 'ㄱ';
-  return infoItem({phase,skillId:'initial-exposure',targetId:entry.word,emoji:entry.emoji,display:initial,word:entry.word,prompt:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.',speech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
+function youngerPictureToWord(entry,phase,count){
+  const options=youngerChoiceEntries(entry,count);
+  return learningItem({phase,skillId:'picture-to-word',targetId:entry.word,emoji:entry.emoji,display:'',word:'알맞은 낱말은?',prompt:'그림에 맞는 낱말을 찾아보세요.',speech:'그림에 맞는 낱말을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.word,value.word)),answer:entry.word,answerSpeech:'정답은 '+entry.word+'예요.',cue:'picture'});
 }
-function youngerInitialChoice(entry,phase,count,audioOnly=false){
-  const initial=entry.initial || 'ㄱ';
-  return learningItem({phase,skillId:audioOnly?'sound-to-initial':'picture-to-initial',targetId:entry.word,emoji:audioOnly?'':entry.emoji,display:audioOnly?'🔊':'?',word:'첫 글자는?',prompt:audioOnly?'소리를 듣고 첫 글자를 찾아보세요.':'그림 이름의 첫 글자를 찾아보세요.',speech:audioOnly?entry.word+'. 첫 글자를 찾아보세요.':'그림 이름의 첫 글자를 찾아보세요.',choices:stableChoices(initial,consonantOrder,count).map(value=>itemChoice(value,value,spokenLetter(value))),answer:initial,answerSpeech:entry.word+'는 '+spokenLetter(initial)+'으로 시작해요.'});
+function youngerSoundToWord(entry,phase,count,skillId='sound-to-word'){
+  const options=youngerChoiceEntries(entry,count);
+  return learningItem({phase,skillId,targetId:entry.word,display:'🔊',word:'들은 낱말은?',prompt:'소리를 듣고 낱말을 찾아보세요.',speech:entry.word+'. 들은 낱말을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.word,value.word)),answer:entry.word,answerSpeech:'정답은 '+entry.word+'예요.',cue:'sound'});
+}
+function youngerSyllableChoices(answer,count){
+  const pool=[...new Set(allYoungerEntries().map(entry=>firstSyllable(entry.word)).filter(Boolean))];
+  return stableChoices(answer,pool,count).map(value=>itemChoice(value,value,value));
+}
+function youngerPictureToFirstSyllable(entry,phase,count){
+  const answer=firstSyllable(entry.word);
+  return learningItem({phase,skillId:'picture-to-first-syllable',targetId:entry.word,emoji:entry.emoji,display:'',word:'첫 글자는?',prompt:'그림 이름의 첫 글자를 찾아보세요.',speech:'그림 이름의 첫 글자를 찾아보세요.',choices:youngerSyllableChoices(answer,count),answer,answerSpeech:entry.word+'의 첫 글자는 '+answer+'예요.',cue:'picture',targetWord:entry.word,targetSyllable:answer});
+}
+function youngerSoundToFirstSyllable(entry,phase,count){
+  const answer=firstSyllable(entry.word);
+  return learningItem({phase,skillId:'sound-to-first-syllable',targetId:entry.word,display:'🔊',word:'첫 글자는?',prompt:'소리를 듣고 낱말의 첫 글자를 찾아보세요.',speech:entry.word+'. 첫 글자를 찾아보세요.',choices:youngerSyllableChoices(answer,count),answer,answerSpeech:entry.word+'의 첫 글자는 '+answer+'예요.',cue:'sound',targetWord:entry.word,targetSyllable:answer});
 }
 function youngerSameInitial(entry,entries,phase,count){
-  const match=entries.find(value=>value.word!==entry.word && value.initial===entry.initial) || allYoungerEntries().find(value=>value.word!==entry.word && value.initial===entry.initial) || entry;
-  const options=youngerChoiceEntries(match,count,true);
-  return learningItem({phase,skillId:'same-initial',targetId:entry.initial,emoji:entry.emoji,display:entry.initial,word:entry.word,prompt:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',speech:entry.word+'와 같은 첫 글자로 시작하는 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:match.word,answerSpeech:entry.word+'와 '+match.word+'는 같은 첫 글자로 시작해요.'});
+  const all=uniqueYoungerEntries(entries.concat(allYoungerEntries()));
+  let target=entry;
+  let match=all.find(value=>value.word!==target.word && value.initial===target.initial);
+  if(!match){
+    target=entries.find(candidate=>all.some(value=>value.word!==candidate.word && value.initial===candidate.initial)) || entryFor('모자');
+    match=all.find(value=>value.word!==target.word && value.initial===target.initial);
+  }
+  if(!match) throw new Error('같은 첫소리 짝을 찾을 수 없습니다: '+target.word);
+  const options=youngerChoiceEntries(match,count,value=>value.initial!==target.initial);
+  return learningItem({phase,skillId:'same-initial-sound',targetId:target.word,display:'🔊',word:'같은 첫소리는?',prompt:'소리를 듣고 같은 첫소리로 시작하는 그림을 찾아보세요.',speech:target.word+'. 같은 첫소리로 시작하는 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:match.word,answerSpeech:target.word+'와 '+match.word+'는 같은 첫소리로 시작해요.',cue:'sound',relation:'same-initial',targetWord:target.word,answerWord:match.word});
 }
-function youngerDifferentLetter(entry,phase,count){
-  const initial=entry.initial || 'ㄱ';
-  const other=consonantOrder.find(value=>value!==initial) || 'ㄴ';
-  const choices=[
-    itemChoice('same-a',initial+'  '+initial,initial+' 두 개'),
-    itemChoice('different',initial+'  '+other,initial+'과 '+other),
-    itemChoice('same-b',initial+'  '+initial,initial+' 두 개')
-  ].slice(0,count);
-  return learningItem({phase,skillId:'different-letter',targetId:initial,display:initial,word:'서로 다른 글자는?',prompt:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',speech:'서로 다른 글자 두 개가 있는 카드를 찾아보세요.',choices,answer:'different',answerSpeech:spokenLetter(initial)+'과 '+spokenLetter(other)+'가 서로 달라요.'});
+function youngerSimilarWord(entry,phase,count){
+  const sameInitial=allYoungerEntries().filter(value=>value.word!==entry.word && value.initial===entry.initial);
+  const remaining=allYoungerEntries().filter(value=>value.word!==entry.word && value.initial!==entry.initial);
+  const pool=uniqueYoungerEntries(sameInitial.concat(remaining));
+  const words=stableChoices(entry.word,pool.map(value=>value.word),count);
+  return learningItem({phase,skillId:'similar-word',targetId:entry.word,display:'🔊',word:'들은 낱말은?',prompt:'비슷하게 보이는 낱말을 잘 보고 골라보세요.',speech:entry.word+'. 들은 낱말을 찾아보세요.',choices:words.map(value=>itemChoice(value,value,value)),answer:entry.word,answerSpeech:'정답은 '+entry.word+'예요.',cue:'sound'});
+}
+function youngerWordCompletion(entry,phase,count){
+  const target=youngerCompletionWords[entry.word] || entry.word;
+  const syllables=Array.from(target);
+  const blankIndex=Math.max(0,syllables.length-1);
+  const answer=syllables[blankIndex];
+  const display=syllables.map((value,index)=>index===blankIndex?'□':value).join('');
+  const pool=[...new Set(allYoungerEntries().flatMap(value=>Array.from(value.word)))];
+  return learningItem({phase,skillId:'word-completion',targetId:target,display,word:'낱말 완성',prompt:'빈칸에 들어갈 글자를 찾아보세요.',speech:'낱말을 보고 빈칸에 들어갈 글자를 찾아보세요.',choices:stableChoices(answer,pool,count).map(value=>itemChoice(value,value,value)),answer,answerSpeech:'완성한 낱말은 '+target+'예요.',cue:'word-parts'});
+}
+function youngerFirstSyllableCategory(entry,phase,count){
+  let target=entry;
+  let peerWord=youngerSyllablePeers[target.word];
+  if(!peerWord){
+    target=entryFor(['기차','모자','사자','바나나','토끼','우유','로봇','책'][Math.abs(hashSeed(entry.word))%8]);
+    peerWord=youngerSyllablePeers[target.word];
+  }
+  const peer=entryFor(peerWord);
+  const options=youngerChoiceEntries(peer,count,value=>firstSyllable(value.word)!==firstSyllable(target.word));
+  return learningItem({phase,skillId:'first-syllable-category',targetId:target.word,display:'🔊',word:'같은 첫 글자는?',prompt:'소리를 듣고 같은 첫 글자로 시작하는 그림을 찾아보세요.',speech:target.word+'. 같은 첫 글자로 시작하는 그림을 찾아보세요.',choices:options.map(value=>itemChoice(value.word,value.emoji,value.word)),answer:peer.word,answerSpeech:target.word+'와 '+peer.word+'는 '+firstSyllable(target.word)+'로 시작해요.',cue:'sound',relation:'same-first-syllable',targetWord:target.word,answerWord:peer.word});
+}
+const youngerActivityPatterns={
+  foundation:{
+    'picture-first':['exposure','sound-picture','picture-word','sound-picture','picture-word','sound-picture','picture-word'],
+    'sound-link':['exposure','sound-picture','picture-word','sound-word','sound-picture','picture-word','sound-word'],
+    'initial-intro':['exposure','picture-word','sound-word','picture-first-syllable','sound-picture','picture-word','sound-first-syllable'],
+    'initial-ready':['exposure','picture-word','sound-word','sound-first-syllable','same-initial','sound-word','picture-first-syllable']
+  },
+  link:{
+    'picture-first':['exposure','sound-picture','picture-word','picture-first-syllable','sound-picture','picture-word','same-initial'],
+    'sound-link':['exposure','picture-word','sound-word','picture-first-syllable','sound-picture','same-initial','picture-word'],
+    'initial-intro':['exposure','picture-word','sound-word','picture-first-syllable','sound-first-syllable','same-initial','sound-word'],
+    'initial-ready':['exposure','sound-word','sound-first-syllable','same-initial','picture-first-syllable','sound-word','same-initial']
+  },
+  discriminate:{
+    'picture-first':['exposure','picture-word','sound-picture','picture-first-syllable','sound-word','similar-word','word-completion'],
+    'sound-link':['exposure','picture-word','sound-word','picture-first-syllable','sound-first-syllable','similar-word','word-completion'],
+    'initial-intro':['exposure','sound-word','sound-first-syllable','picture-first-syllable','similar-word','word-completion','same-initial'],
+    'initial-ready':['exposure','sound-word','sound-first-syllable','similar-word','word-completion','same-initial','sound-word']
+  },
+  challenge:{
+    'picture-first':['exposure','picture-word','sound-word','picture-first-syllable','word-completion','same-initial','sound-word'],
+    'sound-link':['exposure','picture-word','sound-word','sound-first-syllable','word-completion','same-initial','similar-word'],
+    'initial-intro':['exposure','sound-word','sound-first-syllable','same-initial','word-completion','first-syllable-category','sound-word'],
+    'initial-ready':['sound-word','sound-first-syllable','same-initial','word-completion','first-syllable-category','sound-word','word-completion']
+  }
+};
+function youngerPatternGroup(weekNumber){
+  if(weekNumber<=2) return 'foundation';
+  if(weekNumber<=4) return 'link';
+  if(weekNumber<=6) return 'discriminate';
+  return 'challenge';
+}
+function youngerChoiceCount(supportLevel,index){
+  if(supportLevel==='picture-first') return 2;
+  if(supportLevel==='sound-link') return index%2===0?2:3;
+  return 3;
+}
+function youngerActivity(kind,entry,entries,phase,count){
+  if(kind==='exposure') return youngerPictureWord(entry,phase);
+  if(kind==='sound-picture') return youngerSoundPicture(entry,phase,count);
+  if(kind==='picture-word') return youngerPictureToWord(entry,phase,count);
+  if(kind==='sound-word') return youngerSoundToWord(entry,phase,count);
+  if(kind==='picture-first-syllable') return youngerPictureToFirstSyllable(entry,phase,count);
+  if(kind==='sound-first-syllable') return youngerSoundToFirstSyllable(entry,phase,count);
+  if(kind==='same-initial') return youngerSameInitial(entry,entries,phase,count);
+  if(kind==='similar-word') return youngerSimilarWord(entry,phase,count);
+  if(kind==='word-completion') return youngerWordCompletion(entry,phase,count);
+  return youngerFirstSyllableCategory(entry,phase,count);
+}
+function youngerWritingTarget(weekNumber,entries,variantIndex){
+  const entry=entries[variantIndex%entries.length];
+  if(weekNumber<=2) return entry.initial || 'ㄱ';
+  if(weekNumber<=6) return firstSyllable(entry.word) || '가';
+  const familiar=entries.find(value=>Array.from(value.word).length===2);
+  if(familiar) return familiar.word;
+  return ['모자','기차','사자','우유','토끼','버스','로봇','가방'][variantIndex%8];
+}
+function youngerWritingMode(weekNumber){
+  if(weekNumber===6) return 'copy';
+  return 'trace';
 }
 function buildYoungerItems(week,session,isReview,supportLevel,variantIndex=0){
   const baseTargets=isReview?week.weeklyReview.targets:session.targets;
   const targets=rotatedTargets(baseTargets,variantIndex);
   const entries=youngerEntriesFor(targets);
   const phase=isReview?'weekreview':'new';
-  const choiceCount=supportLevel==='picture-first'?2:3;
+  const group=youngerPatternGroup(week.number);
+  const safeSupport=youngerActivityPatterns[group][supportLevel]?supportLevel:'picture-first';
+  const pattern=youngerActivityPatterns[group][safeSupport];
   const selected=Array.from({length:7},(_,index)=>entries[index%entries.length]);
-  const items=[
-    youngerPictureWord(selected[0],phase),
-    youngerPictureFind(selected[1],phase,choiceCount),
-    youngerInitialChoice(selected[2],phase,choiceCount,false),
-    youngerSameInitial(selected[3],entries,phase,choiceCount),
-    youngerDifferentLetter(selected[4],phase,choiceCount),
-    youngerPictureFind(selected[5],phase,choiceCount),
-    supportLevel==='initial-ready'
-      ? youngerInitialChoice(selected[6],phase,3,true)
-      : supportLevel==='initial-intro'
-        ? youngerInitialChoice(selected[6],phase,3,false)
-        : supportLevel==='sound-link'
-          ? youngerPictureFind(selected[6],phase,3)
-          : youngerInitialExposure(selected[6],phase),
-    writingItem(selected[0].initial || 'ㄱ','trace',phase)
-  ];
+  const items=pattern.map((kind,index)=>youngerActivity(kind,selected[index],entries,phase,youngerChoiceCount(safeSupport,index)));
+  items.push(writingItem(youngerWritingTarget(week.number,entries,variantIndex),youngerWritingMode(week.number),phase));
   const withIds=items.map((item,index)=>Object.assign(item,{itemId:(isReview?'review':session.id)+':item-'+(index+1)}));
   return varyLearningItems(withIds,week.id+'|'+session.id+'|'+isReview,variantIndex);
 }
@@ -1416,18 +1533,89 @@ function drawingContext(){
   const canvas=document.getElementById('writingCanvas');
   return canvas?canvas.getContext('2d'):null;
 }
-function resizeDrawingCanvas(){
+function syncDrawingDiagnosticAttributes(){
   const canvas=document.getElementById('writingCanvas');
-  if(!canvas || canvas.hidden) return;
-  const rect=canvas.getBoundingClientRect();
-  if(!rect.width || !rect.height) return;
-  const scale=Math.min(window.devicePixelRatio || 1,2);
-  canvas.width=Math.round(rect.width*scale);
-  canvas.height=Math.round(rect.height*scale);
-  const context=drawingContext();
+  if(!canvas) return;
+  const bounds=drawingUi.bounds;
+  canvas.dataset.devDrawing=String(drawingUi.drawing);
+  canvas.dataset.devLastEvent=drawingUi.lastEvent;
+  canvas.dataset.devInkDistance=String(Math.round(drawingUi.inkDistance));
+  canvas.dataset.devStrokeCount=String(drawingUi.strokeCount);
+  canvas.dataset.devSegmentCount=String(drawingUi.segments.length);
+  canvas.dataset.devPointerDownCount=String(drawingUi.pointerDownCount);
+  canvas.dataset.devPointerMoveCount=String(drawingUi.pointerMoveCount);
+  canvas.dataset.devPointerEndCount=String(drawingUi.pointerEndCount);
+  canvas.dataset.devProcessedPointCount=String(drawingUi.processedPointCount);
+  canvas.dataset.devPointerDownActivated=String(drawingUi.pointerDownActivated);
+  canvas.dataset.devBounds=bounds?[bounds.minX,bounds.minY,bounds.maxX,bounds.maxY].map(value=>Math.round(value)).join(','):'';
+}
+function configureDrawingContext(context,scale){
   context.setTransform(scale,0,0,scale,0,0);
   context.lineCap='round';
   context.lineJoin='round';
+}
+function recomputeDrawingMetrics(){
+  drawingUi.inkDistance=drawingUi.segments.reduce((sum,segment)=>sum+segment.distance,0);
+  const strokeDistances=new Map();
+  drawingUi.bounds=null;
+  drawingUi.segments.forEach(segment=>{
+    strokeDistances.set(segment.strokeId,(strokeDistances.get(segment.strokeId)||0)+segment.distance);
+    includeDrawingPoint(segment.from);
+    includeDrawingPoint(segment.to);
+  });
+  drawingUi.strokeCount=[...strokeDistances.values()].filter(distance=>distance>=12).length;
+  drawingUi.hasInk=drawingUi.segments.length>0;
+  syncDrawingDiagnosticAttributes();
+}
+function scaleDrawingModel(scaleX,scaleY){
+  if(scaleX===1 && scaleY===1) return;
+  drawingUi.segments=drawingUi.segments.map(segment=>{
+    const from={x:segment.from.x*scaleX,y:segment.from.y*scaleY};
+    const to={x:segment.to.x*scaleX,y:segment.to.y*scaleY};
+    return Object.assign({},segment,{from,to,distance:Math.hypot(to.x-from.x,to.y-from.y)});
+  });
+  recomputeDrawingMetrics();
+}
+function resizeDrawingCanvas(preserve=true){
+  const canvas=document.getElementById('writingCanvas');
+  if(!canvas || canvas.hidden) return false;
+  const rect=canvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return false;
+  const scale=Math.min(window.devicePixelRatio || 1,2);
+  const pixelWidth=Math.max(1,Math.round(rect.width*scale));
+  const pixelHeight=Math.max(1,Math.round(rect.height*scale));
+  const previousWidth=drawingUi.cssWidth || rect.width;
+  const previousHeight=drawingUi.cssHeight || rect.height;
+  if(canvas.width===pixelWidth && canvas.height===pixelHeight){
+    drawingUi.cssWidth=rect.width;
+    drawingUi.cssHeight=rect.height;
+    drawingUi.dpr=scale;
+    configureDrawingContext(drawingContext(),scale);
+    return true;
+  }
+  let snapshot=null;
+  if(preserve && canvas.width && canvas.height && drawingUi.hasInk){
+    snapshot=document.createElement('canvas');
+    snapshot.width=canvas.width;
+    snapshot.height=canvas.height;
+    snapshot.getContext('2d').drawImage(canvas,0,0);
+  }
+  canvas.width=pixelWidth;
+  canvas.height=pixelHeight;
+  const context=drawingContext();
+  if(snapshot){
+    context.setTransform(1,0,0,1,0,0);
+    context.drawImage(snapshot,0,0,snapshot.width,snapshot.height,0,0,pixelWidth,pixelHeight);
+  }
+  configureDrawingContext(context,scale);
+  if(preserve && drawingUi.segments.length){
+    scaleDrawingModel(rect.width/previousWidth,rect.height/previousHeight);
+  }
+  drawingUi.cssWidth=rect.width;
+  drawingUi.cssHeight=rect.height;
+  drawingUi.dpr=scale;
+  syncDrawingDiagnosticAttributes();
+  return true;
 }
 function setDrawingTool(tool){
   drawingUi.tool=tool==='eraser'?'eraser':'pen';
@@ -1462,9 +1650,22 @@ function prepareDrawing(item){
   drawingUi.answerRevealed=false;
   drawingUi.drawing=false;
   drawingUi.lastPoint=null;
+  drawingUi.pointerId=null;
+  drawingUi.segments=[];
+  drawingUi.nextStrokeId=1;
+  drawingUi.activeStrokeId=null;
+  drawingUi.pendingResize=false;
+  drawingUi.hasInk=false;
+  drawingUi.lastEvent='reset';
+  drawingUi.pointerDownCount=0;
+  drawingUi.pointerMoveCount=0;
+  drawingUi.pointerEndCount=0;
+  drawingUi.processedPointCount=0;
+  drawingUi.pointerDownActivated=false;
   state.answered=false;
   setDrawingTool('pen');
-  resizeDrawingCanvas();
+  if(!resizeDrawingCanvas(false)) requestAnimationFrame(()=>resizeDrawingCanvas(false));
+  syncDrawingDiagnosticAttributes();
 }
 function resetDrawing(){
   const item=state.items[state.index];
@@ -1477,16 +1678,32 @@ function drawingPoint(event){
   const rect=canvas.getBoundingClientRect();
   return {x:event.clientX-rect.left,y:event.clientY-rect.top};
 }
+function drawDrawingDot(point,tool){
+  const context=drawingContext();
+  context.globalCompositeOperation=tool==='eraser'?'destination-out':'source-over';
+  context.fillStyle='#2F2F33';
+  context.beginPath();
+  context.arc(point.x,point.y,tool==='eraser'?19:8,0,Math.PI*2);
+  context.fill();
+  if(tool==='pen') drawingUi.hasInk=true;
+}
 function beginDrawing(event){
   const item=state.items[state.index];
-  if(!item || item.type!=='drawing') return;
+  if(!item || item.type!=='drawing' || drawingUi.drawing || event.isPrimary===false) return;
   event.preventDefault();
   const canvas=event.currentTarget;
   try{canvas.setPointerCapture(event.pointerId);}catch(error){}
   drawingUi.drawing=true;
+  drawingUi.pointerId=event.pointerId;
   drawingUi.lastPoint=drawingPoint(event);
   drawingUi.strokeDistance=0;
-  if(drawingUi.tool==='pen') includeDrawingPoint(drawingUi.lastPoint);
+  drawingUi.activeStrokeId=drawingUi.nextStrokeId++;
+  drawingUi.lastEvent='pointerdown';
+  drawingUi.pointerDownCount++;
+  drawingUi.pointerDownActivated=drawingUi.drawing;
+  drawDrawingDot(drawingUi.lastPoint,drawingUi.tool);
+  if(drawingUi.tool==='eraser') eraseDrawingMetrics(drawingUi.lastPoint,drawingUi.lastPoint);
+  syncDrawingDiagnosticAttributes();
 }
 function includeDrawingPoint(point){
   if(!drawingUi.bounds){
@@ -1503,8 +1720,12 @@ function meaningfulWritingLength(target){
   return Math.max(1,letters.length);
 }
 function drawingCompletionLimits(item){
-  if(state.child==='younger') return {strokes:1,distance:80,width:35,height:30};
   const length=meaningfulWritingLength(item && (item.writingTarget || item.targetId));
+  if(state.child==='younger'){
+    if(length===1) return {strokes:1,distance:75,width:32,height:28};
+    if(length===2) return {strokes:2,distance:105,width:48,height:32};
+    return {strokes:3,distance:125,width:58,height:34};
+  }
   if(length===1) return {strokes:2,distance:90,width:38,height:30};
   if(length===2) return {strokes:3,distance:120,width:52,height:34};
   const extra=Math.min(3,length-3);
@@ -1551,36 +1772,93 @@ function revealWritingAnswer(){
   updateDrawingCompletion();
   speak(item.writingTarget || item.targetId);
 }
-function moveDrawing(event){
-  if(!drawingUi.drawing || !drawingUi.lastPoint) return;
-  event.preventDefault();
-  const point=drawingPoint(event);
+function pointToSegmentDistance(point,from,to){
+  const lengthSquared=(to.x-from.x)**2+(to.y-from.y)**2;
+  if(!lengthSquared) return Math.hypot(point.x-from.x,point.y-from.y);
+  const ratio=Math.max(0,Math.min(1,((point.x-from.x)*(to.x-from.x)+(point.y-from.y)*(to.y-from.y))/lengthSquared));
+  const closest={x:from.x+ratio*(to.x-from.x),y:from.y+ratio*(to.y-from.y)};
+  return Math.hypot(point.x-closest.x,point.y-closest.y);
+}
+function eraseDrawingMetrics(from,to){
+  const radius=22;
+  drawingUi.segments=drawingUi.segments.filter(segment=>{
+    const midpoint={x:(segment.from.x+segment.to.x)/2,y:(segment.from.y+segment.to.y)/2};
+    const distance=Math.min(
+      pointToSegmentDistance(segment.from,from,to),
+      pointToSegmentDistance(segment.to,from,to),
+      pointToSegmentDistance(midpoint,from,to),
+      pointToSegmentDistance(from,segment.from,segment.to),
+      pointToSegmentDistance(to,segment.from,segment.to)
+    );
+    return distance>radius;
+  });
+  recomputeDrawingMetrics();
+}
+function drawDrawingSegment(previous,point){
+  const distance=Math.hypot(point.x-previous.x,point.y-previous.y);
+  if(distance<0.1) return;
   const context=drawingContext();
-  const previous=drawingUi.lastPoint;
   context.globalCompositeOperation=drawingUi.tool==='eraser'?'destination-out':'source-over';
   context.strokeStyle='#2F2F33';
-  context.lineWidth=drawingUi.tool==='eraser'?34:16;
+  context.lineWidth=drawingUi.tool==='eraser'?38:16;
   context.beginPath();
   context.moveTo(previous.x,previous.y);
   context.lineTo(point.x,point.y);
   context.stroke();
-  const distance=Math.hypot(point.x-previous.x,point.y-previous.y);
   if(drawingUi.tool==='pen'){
+    drawingUi.segments.push({strokeId:drawingUi.activeStrokeId,from:previous,to:point,distance});
     drawingUi.inkDistance+=distance;
     drawingUi.strokeDistance+=distance;
     includeDrawingPoint(previous);
     includeDrawingPoint(point);
+    drawingUi.hasInk=true;
+  }else{
+    eraseDrawingMetrics(previous,point);
   }
   drawingUi.lastPoint=point;
 }
+function coalescedDrawingEvents(event){
+  let events=[];
+  if(typeof event.getCoalescedEvents==='function'){
+    try{events=event.getCoalescedEvents() || [];}catch(error){events=[];}
+  }
+  if(!events.length || events[events.length-1].clientX!==event.clientX || events[events.length-1].clientY!==event.clientY){
+    events=events.concat(event);
+  }
+  return events;
+}
+function moveDrawing(event){
+  if(!drawingUi.drawing || !drawingUi.lastPoint || event.pointerId!==drawingUi.pointerId) return;
+  event.preventDefault();
+  const samples=coalescedDrawingEvents(event);
+  drawingUi.lastEvent='pointermove';
+  drawingUi.pointerMoveCount++;
+  drawingUi.processedPointCount+=samples.length;
+  samples.forEach(sample=>drawDrawingSegment(drawingUi.lastPoint,drawingPoint(sample)));
+  syncDrawingDiagnosticAttributes();
+}
 function endDrawing(event){
-  if(!drawingUi.drawing) return;
-  if(drawingUi.tool==='pen' && drawingUi.strokeDistance>=12) drawingUi.strokeCount++;
+  if(!drawingUi.drawing || (event.pointerId!==undefined && event.pointerId!==drawingUi.pointerId)) return;
+  const canvas=event.currentTarget;
+  const pointerId=drawingUi.pointerId;
   drawingUi.drawing=false;
   drawingUi.lastPoint=null;
   drawingUi.strokeDistance=0;
-  try{event.currentTarget.releasePointerCapture(event.pointerId);}catch(error){}
+  drawingUi.activeStrokeId=null;
+  drawingUi.pointerId=null;
+  drawingUi.lastEvent=event.type || 'pointerend';
+  drawingUi.pointerEndCount++;
+  recomputeDrawingMetrics();
+  try{if(canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);}catch(error){}
   updateDrawingCompletion();
+  if(drawingUi.pendingResize){
+    drawingUi.pendingResize=false;
+    requestAnimationFrame(()=>resizeDrawingCanvas(true));
+  }
+}
+function leaveDrawing(event){
+  const canvas=event.currentTarget;
+  if(drawingUi.drawing && (!canvas.hasPointerCapture || !canvas.hasPointerCapture(drawingUi.pointerId))) endDrawing(event);
 }
 function initializeDrawingCanvas(){
   const canvas=document.getElementById('writingCanvas');
@@ -1588,9 +1866,14 @@ function initializeDrawingCanvas(){
   canvas.addEventListener('pointermove',moveDrawing);
   canvas.addEventListener('pointerup',endDrawing);
   canvas.addEventListener('pointercancel',endDrawing);
+  canvas.addEventListener('lostpointercapture',endDrawing);
+  canvas.addEventListener('pointerleave',leaveDrawing);
   window.addEventListener('resize',()=>{
     const item=state.items[state.index];
-    if(item && item.type==='drawing') resetDrawing();
+    if(!item || item.type!=='drawing') return;
+    if(drawingUi.drawing){drawingUi.pendingResize=true;return;}
+    clearTimeout(drawingResizeTimer);
+    drawingResizeTimer=setTimeout(()=>resizeDrawingCanvas(true),80);
   });
 }
 function render(){
@@ -1830,8 +2113,135 @@ function closeParent(event){
   if(event.target.id==='parentModal') event.currentTarget.classList.remove('show');
 }
 
+function visibleText(value){
+  return String(value || '').replace(/\s+/g,'').trim();
+}
+function choiceWord(option){
+  return String(option && (option.speech || option.id) || '').replace(/^[^가-힣ㄱ-ㅎㅏ-ㅣ]+/,'').trim();
+}
+function validateScoredQuestion(question,context,issues){
+  if(!question || question.type==='info' || question.type==='speak' || question.type==='drawing') return;
+  const choices=Array.isArray(question.choices)?question.choices:[];
+  const ids=choices.map(option=>String(option.id));
+  if(new Set(ids).size!==ids.length) issues.push(context+': choice id가 중복됩니다.');
+  if(ids.filter(id=>id===String(question.answer)).length!==1) issues.push(context+': answer가 choices에 정확히 한 번 존재하지 않습니다.');
+  const correct=choices.find(option=>String(option.id)===String(question.answer));
+  const displayed=[question.display,question.word,question.prompt].map(visibleText).filter(Boolean);
+  if(correct && displayed.includes(visibleText(correct.label))){
+    issues.push(context+': scored question 화면에 정답 선택지가 그대로 노출됩니다.');
+  }
+  if(question.cue==='sound' && question.targetWord){
+    const target=visibleText(question.targetWord);
+    if(target && displayed.some(value=>value.includes(target))) issues.push(context+': sound cue의 정답 낱말이 화면에 노출됩니다.');
+  }
+  if(question.relation==='same-initial'){
+    const targetInitial=initialOf(question.targetWord);
+    const answerWord=question.answerWord || choiceWord(correct);
+    if(!targetInitial || targetInitial!==initialOf(answerWord)){
+      issues.push(context+': target과 answer의 초성이 일치하지 않습니다 ('+question.targetWord+' → '+answerWord+').');
+    }
+    const matching=choices.filter(option=>initialOf(choiceWord(option))===targetInitial);
+    if(matching.length!==1) issues.push(context+': 같은 초성 정답 후보가 '+matching.length+'개입니다.');
+  }
+  if(question.relation==='same-first-syllable'){
+    const targetSyllable=firstSyllable(question.targetWord);
+    const answerWord=question.answerWord || choiceWord(correct);
+    if(!targetSyllable || targetSyllable!==firstSyllable(answerWord)){
+      issues.push(context+': target과 answer의 첫 음절이 일치하지 않습니다.');
+    }
+    const matching=choices.filter(option=>firstSyllable(choiceWord(option))===targetSyllable);
+    if(matching.length!==1) issues.push(context+': 같은 첫 음절 정답 후보가 '+matching.length+'개입니다.');
+  }
+  if(question.targetSyllable && question.targetSyllable!==question.answer){
+    issues.push(context+': 첫 음절 정답이 targetSyllable과 다릅니다.');
+  }
+}
+function validateCurriculumData(){
+  const issues=[];
+  const test=CURRICULUM.levelTests.younger;
+  const expectedStages=['picture-to-word','sound-to-word','sound-to-first-syllable','same-initial-sound'];
+  if(test.stages.map(stage=>stage.id).join('|')!==expectedStages.join('|')) issues.push('재윤 placement 4단계 순서가 올바르지 않습니다.');
+  test.stages.forEach(stage=>{
+    if(stage.questionBank.length<8 || stage.questionBank.length>12) issues.push('placement '+stage.id+': 문제은행은 8~12문항이어야 합니다.');
+    stage.questionBank.forEach(question=>validateScoredQuestion(question,'placement '+stage.id+'/'+question.id,issues));
+  });
+  const supports=['picture-first','sound-link','initial-intro','initial-ready'];
+  courseFor('younger').weeks.forEach(week=>{
+    const progression=courseFor('younger').progression[week.number];
+    if(!progression) issues.push('재윤 '+week.number+'주차 progression이 없습니다.');
+    week.sessions.concat(week.weeklyReview).forEach(session=>{
+      supports.forEach(support=>{
+        for(let variant=0;variant<8;variant++){
+          let items=[];
+          const scope='재윤 '+week.number+'주차/'+session.id+'/'+support+'/variant-'+variant;
+          try{items=buildYoungerItems(week,session,session===week.weeklyReview,support,variant);}
+          catch(error){issues.push(scope+': '+error.message);continue;}
+          if(items.length!==8) issues.push(scope+': 활동 수가 8개가 아닙니다.');
+          if(items.filter(item=>item.type==='drawing').length!==1) issues.push(scope+': 쓰기 활동이 정확히 1개가 아닙니다.');
+          if(items.some(item=>item.skillId==='different-letter' || item.skillId==='same-letter')) issues.push(scope+': 시각 모양 비교형 scored activity가 남아 있습니다.');
+          if(items.some(item=>/sentence|combine|syllable-composition/.test(item.skillId))) issues.push(scope+': 문장 읽기 또는 자모 조합 activity가 포함되어 있습니다.');
+          items.forEach((item,index)=>validateScoredQuestion(item,'learning '+week.id+'/'+session.id+'/'+support+'/variant-'+variant+'/item-'+(index+1),issues));
+        }
+      });
+    });
+  });
+  supports.forEach(support=>{
+    const signatures=Object.keys(youngerActivityPatterns).map(group=>youngerActivityPatterns[group][support].join('|'));
+    if(new Set(signatures).size<3) issues.push(support+': 주차가 올라가도 activity 구성이 충분히 달라지지 않습니다.');
+  });
+  return {valid:issues.length===0,issues};
+}
+function assertValidCurriculumData(){
+  const result=validateCurriculumData();
+  if(!result.valid) throw new Error('한글 커리큘럼 데이터 검증 실패:\n'+result.issues.join('\n'));
+  return result;
+}
+function drawingDiagnostics(){
+  const canvas=document.getElementById('writingCanvas');
+  const rect=canvas?canvas.getBoundingClientRect():{width:0,height:0};
+  return {
+    drawing:drawingUi.drawing,
+    pointerId:drawingUi.pointerId,
+    inkDistance:drawingUi.inkDistance,
+    strokeCount:drawingUi.strokeCount,
+    segmentCount:drawingUi.segments.length,
+    bounds:drawingUi.bounds?Object.assign({},drawingUi.bounds):null,
+    rect:{width:rect.width,height:rect.height},
+    pixelSize:canvas?{width:canvas.width,height:canvas.height}:{width:0,height:0},
+    dpr:drawingUi.dpr,
+    metricsReady:drawingUi.metricsReady,
+    checks:{
+      canvasRectNonZero:Boolean(rect.width && rect.height),
+      inkMoved:drawingUi.inkDistance>0,
+      strokeRecorded:drawingUi.strokeCount>0,
+      multipleStrokesPreserved:drawingUi.strokeCount>1 && drawingUi.segments.length>1
+    }
+  };
+}
+function openDrawingDiagnostic(target='가',child='younger'){
+  state.child=child==='older'?'older':'younger';
+  state.mode='lesson';
+  state.weekNumber=1;
+  state.sessionNumber=1;
+  state.activityId='development-drawing-diagnostic';
+  state.items=[Object.assign(writingItem(String(target),'trace','new'),{itemId:'development-drawing-diagnostic:item-1'})];
+  begin();
+}
+
+assertValidCurriculumData();
+window.HANGUL_DEV=Object.freeze({
+  validateCurriculumData,
+  drawingDiagnostics,
+  openDrawingDiagnostic,
+  drawingCompletionLimits
+});
 initializeDrawingCanvas();
 updateProgressDisplay();
+const developmentDiagnostic=new URLSearchParams(location.search).get('devDiagnostic');
+if(developmentDiagnostic==='canvas'){
+  const params=new URLSearchParams(location.search);
+  requestAnimationFrame(()=>openDrawingDiagnostic(params.get('target') || '가',params.get('child') || 'younger'));
+}
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load',()=>{
