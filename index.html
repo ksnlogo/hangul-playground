@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="한글 놀이터" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
-<title>우리 아이 한글 놀이터 v0.4</title>
+<title>우리 아이 한글 놀이터 v0.5-D.2</title>
 <style>
   :root{
     --bg:#FFF8EE;
@@ -40,10 +40,7 @@
     padding:calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
       calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))
   }
-  .top{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    margin-bottom:14px
-  }
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
   .brand{font-size:clamp(24px,5vw,38px);font-weight:900;letter-spacing:-1px}
   .sub{font-size:14px;color:var(--muted)}
   .pill{
@@ -54,19 +51,12 @@
     background:var(--card);border:1px solid var(--line);border-radius:26px;
     box-shadow:var(--shadow);padding:22px
   }
-  .hero{
-    display:grid;grid-template-columns:1.25fr .75fr;gap:16px;align-items:stretch
-  }
+  .hero{display:grid;grid-template-columns:1.25fr .75fr;gap:16px;align-items:stretch}
   .hero h1{font-size:clamp(30px,6vw,52px);margin:0 0 10px;line-height:1.12}
   .hero p{color:var(--muted);font-size:17px;line-height:1.7;margin:0}
-  .schedule{
-    background:linear-gradient(145deg,#FFF0D7,#FFF7E9);
-    border-radius:24px;padding:18px
-  }
+  .schedule{background:linear-gradient(145deg,#FFF0D7,#FFF7E9);border-radius:24px;padding:18px}
   .schedule strong{font-size:18px}
-  .week{
-    display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:12px
-  }
+  .week{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:12px}
   .day{
     text-align:center;padding:9px 5px;border-radius:14px;background:#fff;border:1px solid #F0E7DA;
     font-size:12px;font-weight:800
@@ -77,11 +67,23 @@
   .progress-child{margin-top:12px}
   .progress-child-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
   .progress-child-head b{color:#8F3A1C}
+  .course-progress-card{background:rgba(255,255,255,.72);border-radius:20px;padding:14px;margin-top:12px}
+  .course-progress-card:first-of-type{margin-top:14px}
+  .course-week-title{margin-top:5px;color:var(--muted);font-size:13px;font-weight:750}
+  .week-overview{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:12px}
+  .week-dot{
+    display:grid;place-items:center;min-width:0;min-height:34px;border:1px solid #E4DDD3;border-radius:11px;
+    background:#F3F0EB;color:var(--muted);font-size:12px;font-weight:900
+  }
+  button.week-dot{cursor:pointer}
+  button.week-dot:disabled{cursor:default}
+  .week-dot.placed{background:#F1EEE9;color:#9B9389;border-style:dashed}
+  .week-dot.done{background:#EAF8EF;color:#1E6A3B;border-color:#BCE2C9}
+  .week-dot.active{background:#FFF0E9;color:#9B3715;border:3px solid var(--primary)}
+  .week-dot.locked{opacity:.48}
   .screen{display:none}
   .screen.active{display:block}
-  .child-grid{
-    display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px
-  }
+  .child-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
   .child{
     min-height:250px;border:0;border-radius:28px;padding:24px;cursor:pointer;text-align:left;
     box-shadow:var(--shadow);transition:.18s transform ease
@@ -92,53 +94,64 @@
   .avatar{font-size:72px;margin-bottom:10px}
   .child h2{font-size:28px;margin:0 0 6px}
   .child p{margin:0;color:#555b67;line-height:1.55}
-  .home-note{margin-top:16px;font-size:14px;color:var(--muted)}
+  .placement-badge{
+    display:inline-flex;margin-top:14px;border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.72);
+    color:#5B4A3D;font-size:13px;font-weight:900
+  }
   .review-action{
     margin-top:16px;padding:16px;border-radius:20px;background:#FFF7DA;border:1px solid #F0D98A;
     display:flex;align-items:center;justify-content:space-between;gap:12px
   }
-  .review-action[hidden]{display:none}
+  .review-action[hidden], [hidden]{display:none!important}
   .review-action strong{display:block;font-size:18px}
   .review-action span{display:block;margin-top:4px;color:var(--muted);font-size:14px;line-height:1.45}
-  .lesson-head{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px
-  }
+  .lesson-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
   .lesson-title{font-size:26px;font-weight:900}
   .progress-wrap{margin:14px 0 18px}
   .progress-info{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:7px}
   .bar{height:14px;background:#F0ECE6;border-radius:999px;overflow:hidden}
-  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--primary2));transition:.3s}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--primary2));transition:.3s}
   .phase{
     display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;
     font-size:14px;font-weight:900;background:#FFF0E9;color:#B94D24
   }
-  .learning{
-    text-align:center;padding:8px 0
-  }
+  .learning{text-align:center;padding:8px 0}
   .big-emoji{font-size:clamp(88px,18vw,150px);line-height:1.1}
   .big-letter{font-size:clamp(94px,22vw,180px);font-weight:1000;line-height:1;margin:8px 0}
   .word{font-size:clamp(34px,8vw,60px);font-weight:1000;letter-spacing:-2px}
   .hint{font-size:17px;color:var(--muted);margin-top:8px}
+  .writing-panel{max-width:700px;margin:20px auto 4px}
+  .writing-stage{
+    position:relative;width:100%;aspect-ratio:5/3;overflow:hidden;border:3px solid #D8D0C5;
+    border-radius:24px;background:#FFFEFB;box-shadow:inset 0 2px 12px rgba(61,43,26,.06)
+  }
+  .writing-guide{
+    position:absolute;inset:0;display:grid;place-items:center;padding:18px;overflow:hidden;
+    color:rgba(111,168,255,.24);font-size:clamp(110px,25vw,220px);font-weight:1000;line-height:1;
+    user-select:none;-webkit-user-select:none;pointer-events:none;white-space:nowrap
+  }
+  .writing-guide.copy{color:rgba(47,47,51,.82);font-size:clamp(42px,10vw,82px);place-items:start center;padding-top:12px}
+  .writing-canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .writing-tools{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .tool-btn{border:2px solid var(--line);border-radius:15px;background:#fff;padding:11px 15px;font-weight:900;cursor:pointer}
+  .tool-btn.active{border-color:var(--blue);background:#EEF5FF;color:#244D86}
+  .writing-status{min-height:25px;margin-top:8px;color:var(--muted);font-weight:800}
   .sound{
     margin-top:16px;border:0;border-radius:18px;padding:14px 18px;background:#EEF5FF;font-weight:900;
     cursor:pointer;font-size:18px
   }
-  .choices{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 6px
-  }
+  .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 6px}
+  .choices.two-choice{grid-template-columns:repeat(2,1fr);max-width:640px;margin-left:auto;margin-right:auto}
   .choice{
     min-height:82px;border:2px solid var(--line);border-radius:20px;background:#fff;
     font-size:34px;font-weight:1000;cursor:pointer
   }
-  .choice.correct{background:#EAF8EF;border-color:var(--green)}
-  .choice.wrong{background:#FFF0F0;border-color:var(--danger)}
-  .feedback{
-    min-height:34px;font-size:20px;font-weight:900;margin:10px 0
-  }
+  .choice.correct,.placement-choice.correct{background:#EAF8EF;border-color:var(--green)}
+  .choice.wrong,.placement-choice.wrong{background:#FFF0F0;border-color:var(--danger)}
+  .feedback{min-height:34px;font-size:20px;font-weight:900;margin:10px 0}
   .controls{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
-  .btn{
-    border:0;border-radius:18px;padding:14px 20px;font-weight:900;cursor:pointer;min-width:130px
-  }
+  .btn{border:0;border-radius:18px;padding:14px 20px;font-weight:900;cursor:pointer;min-width:130px}
+  .btn:disabled{opacity:.48;cursor:not-allowed}
   .primary{background:var(--primary);color:white}
   .secondary{background:#F3F0EB;color:var(--ink)}
   .green{background:var(--green);color:white}
@@ -146,20 +159,15 @@
     display:flex;align-items:center;gap:8px;font-weight:900;background:#FFF7DA;
     border-radius:999px;padding:9px 13px
   }
-  .result{
-    text-align:center;padding:20px 8px
-  }
+  .result{text-align:center;padding:20px 8px}
   .result .trophy{font-size:90px}
   .result h2{font-size:34px;margin:5px 0}
   .result p{color:var(--muted);font-size:17px;line-height:1.7}
-  .parent{
-    display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px
-  }
-  .stat{
-    background:#FAF8F5;border-radius:18px;padding:16px
-  }
+  .parent{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px}
+  .stat{background:#FAF8F5;border-radius:18px;padding:16px}
   .stat b{font-size:25px;display:block;margin-top:5px}
   .stat small{display:block;margin-top:6px;color:var(--muted);font-weight:700}
+  .stat .placement-status{color:#8F3A1C}
   .tiny{font-size:12px;color:var(--muted)}
   .footer-note{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.6}
   .modal{
@@ -168,16 +176,29 @@
       calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))
   }
   .modal.show{display:flex}
-  .modalbox{max-width:520px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow)}
+  .modalbox{max-width:760px;width:100%;background:white;border-radius:28px;padding:22px;box-shadow:var(--shadow);max-height:90dvh;overflow:auto}
   .modalbox h3{margin-top:0}
-  .plan-list{display:grid;gap:10px}
   .plan-row{display:flex;justify-content:space-between;gap:12px;background:#FAF8F5;border-radius:16px;padding:12px 14px}
+  .placement-card{max-width:760px;margin:0 auto}
+  .placement-intro{text-align:center;padding:20px 8px}
+  .placement-intro .test-icon{font-size:82px}
+  .placement-intro h1{font-size:clamp(30px,6vw,46px);margin:8px 0}
+  .placement-intro p{max-width:600px;margin:0 auto;color:var(--muted);font-size:18px;line-height:1.7}
+  .resume-note{margin:18px auto 0;padding:12px 14px;max-width:520px;border-radius:16px;background:#FFF7DA;font-weight:800}
+  .placement-display{font-size:clamp(70px,18vw,132px);font-weight:1000;line-height:1.2;margin:10px 0}
+  .placement-prompt{font-size:clamp(24px,5vw,36px);font-weight:900;line-height:1.35}
+  .placement-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0 8px}
+  .placement-choice{
+    min-height:92px;border:2px solid var(--line);border-radius:20px;background:#fff;padding:12px;
+    font-size:clamp(24px,5vw,38px);font-weight:1000;cursor:pointer
+  }
+  .placement-choice:disabled{color:var(--ink)}
   @media(max-width:720px){
     .hero{grid-template-columns:1fr}
     .child-grid{grid-template-columns:1fr}
     .parent{grid-template-columns:1fr}
-    .choices{gap:8px}
-    .choice{min-height:72px}
+    .choices,.placement-choices{gap:8px}
+    .choice,.placement-choice{min-height:72px}
     .week{gap:4px}
     .day{font-size:11px;padding:8px 2px}
     .review-action{align-items:stretch;flex-direction:column}
@@ -189,7 +210,7 @@
   <div class="top">
     <div>
       <div class="brand">🌱 우리 아이 한글 놀이터</div>
-      <div class="sub">하루 10분 · 5회 순차 학습 · 주간복습</div>
+      <div class="sub">아이별 레벨테스트 · 8주 맞춤 과정</div>
     </div>
     <button class="pill" onclick="openParent()">부모 보기</button>
   </div>
@@ -198,17 +219,19 @@
     <div class="hero">
       <div class="card">
         <h1 id="welcomeTitle">오늘도 한글이랑 놀아볼까요?</h1>
-        <p id="welcomeText">아이를 선택하면 각자의 진도에 맞는 학습이 시작됩니다. 두 번째 학습부터는 앞의 약 3분을 이전 학습 복습에 사용하고, 이후 새 글자를 배웁니다.</p>
+        <p id="welcomeText">처음에는 짧은 레벨테스트를 추천해요. 부모가 원하면 테스트 없이 1주차부터 시작할 수도 있어요.</p>
         <div class="child-grid">
           <button class="child older" onclick="chooseChild('older')">
             <div class="avatar">👦🏻</div>
             <h2>태윤 시작</h2>
-            <p>2021년 3월생<br>글자 → 낱말 → 간단한 조합</p>
+            <p>2021년 3월생<br>자음 → 모음 → 글자 → 단어 → 문장</p>
+            <span id="olderPlacementBadge" class="placement-badge">레벨테스트 추천</span>
           </button>
           <button class="child younger" onclick="chooseChild('younger')">
             <div class="avatar">🧒🏻</div>
             <h2>재윤 시작</h2>
-            <p>2023년 2월생<br>그림 → 소리 → 첫 글자 찾기</p>
+            <p>2023년 2월생<br>그림 → 소리 → 단어 모양 → 첫 글자</p>
+            <span id="youngerPlacementBadge" class="placement-badge">레벨테스트 추천</span>
           </button>
         </div>
         <div id="reviewAction" class="review-action" hidden>
@@ -221,24 +244,76 @@
       </div>
 
       <div class="schedule">
-        <strong>📚 학습 순서</strong>
-        <div class="tiny" style="margin-top:5px">요일과 관계없이 아이별 완료 순서로 진행</div>
-        <div class="progress-child">
-          <div class="progress-child-head"><span>태윤 진행표</span><b id="homeOlderProgress">0 / 5</b></div>
+        <strong>📚 8주 학습 진행표</strong>
+        <div class="tiny" style="margin-top:5px">요일과 관계없이 완료한 회차부터 이어서 진행해요.</div>
+        <div class="course-progress-card">
+          <div class="progress-child-head"><span>태윤 · 한글 읽기 코스</span><b id="homeOlderProgress">레벨테스트 전</b></div>
+          <div id="homeOlderWeek" class="course-week-title">시작 전</div>
           <div class="week" id="olderProgressStrip"></div>
+          <div class="week-overview" id="olderWeekOverview"></div>
         </div>
-        <div class="progress-child">
-          <div class="progress-child-head"><span>재윤 진행표</span><b id="homeYoungerProgress">0 / 5</b></div>
+        <div class="course-progress-card">
+          <div class="progress-child-head"><span>재윤 · 한글 놀이 코스</span><b id="homeYoungerProgress">레벨테스트 전</b></div>
+          <div id="homeYoungerWeek" class="course-week-title">시작 전</div>
           <div class="week" id="youngerProgressStrip"></div>
+          <div class="week-overview" id="youngerWeekOverview"></div>
         </div>
-        <div style="margin-top:16px">
-          <div class="plan-row"><span>1회 학습</span><b>ㄱ</b></div>
-          <div class="plan-row"><span>2회 학습</span><b>복습 + ㄴ</b></div>
-          <div class="plan-row"><span>3회 학습</span><b>복습 + ㄷ</b></div>
-          <div class="plan-row"><span>4회 학습</span><b>복습 + ㄹ</b></div>
-          <div class="plan-row"><span>5회 학습</span><b>복습 + ㅁ</b></div>
-          <div class="plan-row"><span>5회 완료 후</span><b>ㄱ·ㄴ·ㄷ·ㄹ·ㅁ 주간복습</b></div>
+        <div class="tiny" style="margin-top:12px">8주 표시: 배치 건너뜀 · 완료 · 현재 · 잠김</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="placementIntro" class="screen">
+    <div class="card placement-card placement-intro">
+      <div class="test-icon">🧭</div>
+      <h1 id="placementIntroTitle">레벨테스트</h1>
+      <p id="placementIntroText"></p>
+      <div id="placementResumeNote" class="resume-note" hidden>저장된 위치부터 이어서 할 수 있어요.</div>
+      <div class="controls" style="margin-top:24px">
+        <button class="btn secondary" onclick="goHome()">홈으로</button>
+        <button class="btn secondary" onclick="skipPlacement()">테스트 없이 1주차 시작</button>
+        <button id="placementStartButton" class="btn primary" onclick="startOrResumePlacement()">레벨테스트 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="placementTest" class="screen">
+    <div class="card placement-card">
+      <div class="lesson-head">
+        <div>
+          <div id="placementStage" class="phase">자음</div>
+          <div id="placementTestTitle" class="lesson-title">레벨테스트</div>
         </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-info">
+          <span id="placementProgressText">1 / 최대 18</span>
+          <span>응답마다 자동 저장</span>
+        </div>
+        <div class="bar"><i id="placementProgressBar"></i></div>
+      </div>
+      <div class="learning">
+        <div id="placementDisplay" class="placement-display">ㄱ</div>
+        <div id="placementPrompt" class="placement-prompt">기역을 찾아보세요.</div>
+        <button class="sound" onclick="speakPlacementCurrent()">🔊 다시 듣기</button>
+        <div id="placementChoices" class="placement-choices"></div>
+        <div id="placementFeedback" class="feedback"></div>
+        <div class="controls">
+          <button class="btn secondary" onclick="goHome()">나중에 이어하기</button>
+          <button id="placementNextButton" class="btn primary" onclick="nextPlacementQuestion()" disabled>다음 ▶</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="placementResult" class="screen">
+    <div class="card result placement-card">
+      <div class="trophy">🧭</div>
+      <h2 id="placementResultTitle">레벨테스트 완료!</h2>
+      <div id="placementResultHeadline" class="word">1주차부터 시작</div>
+      <p id="placementResultText"></p>
+      <div class="controls">
+        <button class="btn primary" onclick="goHome()">홈으로</button>
       </div>
     </div>
   </section>
@@ -252,21 +327,32 @@
         </div>
         <div class="starbox">⭐ <span id="stars">0</span></div>
       </div>
-
       <div class="progress-wrap">
         <div class="progress-info">
-          <span id="progressText">1 / 6</span>
-          <span id="timeText">약 10분 학습</span>
+          <span id="progressText">1 / 9</span>
+          <span id="timeText">약 10~12분</span>
         </div>
         <div class="bar"><i id="progressBar"></i></div>
       </div>
-
       <div class="learning">
         <div id="bigEmoji" class="big-emoji">🐶</div>
         <div id="bigLetter" class="big-letter">ㄱ</div>
         <div id="word" class="word">강아지</div>
         <div id="hint" class="hint">강아지의 첫 글자를 찾아보세요.</div>
         <button class="sound" onclick="speakCurrent()">🔊 다시 듣기</button>
+        <div id="writingPanel" class="writing-panel" hidden>
+          <div class="writing-stage">
+            <div id="writingGuide" class="writing-guide" aria-hidden="true"></div>
+            <canvas id="writingCanvas" class="writing-canvas" aria-label="손가락이나 펜으로 글자를 쓰는 공간"></canvas>
+          </div>
+          <div class="writing-tools">
+            <button id="penTool" type="button" class="tool-btn active" onclick="setDrawingTool('pen')" aria-pressed="true">✏️ 펜</button>
+            <button id="eraserTool" type="button" class="tool-btn" onclick="setDrawingTool('eraser')" aria-pressed="false">🧽 지우기</button>
+            <button type="button" class="tool-btn" onclick="resetDrawing()">↺ 다시쓰기</button>
+            <button id="revealWritingAnswer" type="button" class="tool-btn" onclick="revealWritingAnswer()" hidden disabled>👀 정답 보기</button>
+          </div>
+          <div id="writingStatus" class="writing-status">가이드 위를 따라 써보세요.</div>
+        </div>
         <div id="choices" class="choices"></div>
         <div id="feedback" class="feedback"></div>
         <div class="controls">
@@ -295,475 +381,28 @@
     <h3 id="parentTitle">👨‍👩‍👦 부모용 학습 현황</h3>
     <div class="parent">
       <div class="stat"><span>태윤 별</span><b id="pOlderStars">0</b></div>
-      <div class="stat"><span>태윤 진도</span><b id="pOlderProgress">0 / 5</b><small id="pOlderReview">복습 잠김</small></div>
+      <div class="stat">
+        <span>태윤 · 한글 읽기 코스</span><b id="pOlderProgress">학습 시작 전</b>
+        <small id="pOlderReview">복습 잠김</small><small id="pOlderPlacement" class="placement-status">레벨테스트 전</small>
+        <small id="pOlderCompleted">완료 주차 · 없음</small><small id="pOlderPlaced">배치로 건너뜀 · 없음</small>
+        <div id="pOlderWeeks" class="week-overview"></div>
+      </div>
       <div class="stat"><span>재윤 별</span><b id="pYoungerStars">0</b></div>
-      <div class="stat"><span>재윤 진도</span><b id="pYoungerProgress">0 / 5</b><small id="pYoungerReview">복습 잠김</small></div>
+      <div class="stat">
+        <span>재윤 · 한글 놀이 코스</span><b id="pYoungerProgress">학습 시작 전</b>
+        <small id="pYoungerReview">복습 잠김</small><small id="pYoungerPlacement" class="placement-status">레벨테스트 전</small>
+        <small id="pYoungerCompleted">완료 주차 · 없음</small><small id="pYoungerPlaced">배치로 건너뜀 · 없음</small>
+        <div id="pYoungerWeeks" class="week-overview"></div>
+      </div>
     </div>
     <div class="footer-note">
-      권장 운영: 첫 학습은 ㄱ부터 시작하고, 2회차부터 이전 학습 복습 약 3분 + 새 학습 약 7분으로 진행합니다. 5회 학습을 마치면 주간복습이 열립니다.
+      현재 진도와 배치 결과는 아이별로 따로 저장됩니다. 기존 v0.4 기록은 보존되지만 새 8주 진도를 움직이지 않습니다.
     </div>
     <div class="controls"><button class="btn primary" onclick="document.getElementById('parentModal').classList.remove('show')">닫기</button></div>
   </div>
 </div>
 
-<script>
-const weekLetters = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ'];
-const letterSpeech = {
-  'ㄱ':'기역', 'ㄴ':'니은', 'ㄷ':'디귿', 'ㄹ':'리을', 'ㅁ':'미음', 'ㅂ':'비읍', 'ㅏ':'아'
-};
-
-const words = {
-  'ㄱ': [
-    {emoji:'🐶', word:'강아지', initial:'ㄱ'},
-    {emoji:'🎒', word:'가방', initial:'ㄱ'},
-    {emoji:'🚂', word:'기차', initial:'ㄱ'},
-    {emoji:'⚽', word:'공', initial:'ㄱ'}
-  ],
-  'ㄴ': [
-    {emoji:'🦋', word:'나비', initial:'ㄴ'},
-    {emoji:'🌳', word:'나무', initial:'ㄴ'},
-    {emoji:'👁️', word:'눈', initial:'ㄴ'},
-    {emoji:'🎵', word:'노래', initial:'ㄴ'}
-  ],
-  'ㄷ': [
-    {emoji:'🌙', word:'달', initial:'ㄷ'},
-    {emoji:'🦵', word:'다리', initial:'ㄷ'},
-    {emoji:'🍩', word:'도넛', initial:'ㄷ'},
-    {emoji:'🐷', word:'돼지', initial:'ㄷ'}
-  ],
-  'ㄹ': [
-    {emoji:'🤖', word:'로봇', initial:'ㄹ'},
-    {emoji:'🍜', word:'라면', initial:'ㄹ'},
-    {emoji:'📻', word:'라디오', initial:'ㄹ'},
-    {emoji:'🎀', word:'리본', initial:'ㄹ'}
-  ],
-  'ㅁ': [
-    {emoji:'🚪', word:'문', initial:'ㅁ'},
-    {emoji:'💧', word:'물', initial:'ㅁ'},
-    {emoji:'🍈', word:'멜론', initial:'ㅁ'},
-    {emoji:'👒', word:'모자', initial:'ㅁ'}
-  ],
-  'ㅂ': [
-    {emoji:'🍌', word:'바나나', initial:'ㅂ'},
-    {emoji:'🌧️', word:'비', initial:'ㅂ'},
-    {emoji:'🧼', word:'비누', initial:'ㅂ'},
-    {emoji:'🍚', word:'밥', initial:'ㅂ'}
-  ]
-};
-
-const distractors = {
-  'ㄱ':['ㄴ','ㄷ','ㄹ'], 'ㄴ':['ㄱ','ㄷ','ㅁ'], 'ㄷ':['ㄴ','ㄹ','ㅁ'],
-  'ㄹ':['ㄱ','ㄷ','ㅁ'], 'ㅁ':['ㄴ','ㄹ','ㅂ'], 'ㅂ':['ㄴ','ㄷ','ㅁ']
-};
-
-let state = {
-  child:null,
-  items:[],
-  index:0,
-  stars:0,
-  answered:false,
-  mode:'lesson',
-  lessonIndex:0,
-  currentLetter:'ㄱ'
-};
-
-const STORAGE_KEY = 'hangulPlaygroundV04';
-const LEGACY_STORAGE_KEY = 'hangulPlaygroundV02';
-
-function clone(data){ return JSON.parse(JSON.stringify(data)); }
-function emptyProfile(){
-  return {
-    stars:0,
-    completedLessons:0,
-    records:{},
-    weeklyReview:{completed:false,bestStars:0,completedAt:null}
-  };
-}
-function createDefaultData(){
-  return {version:4,children:{older:emptyProfile(),younger:emptyProfile()}};
-}
-function safeCount(value,max=Number.MAX_SAFE_INTEGER){
-  const number=Number(value);
-  return Number.isFinite(number) ? Math.min(max,Math.max(0,Math.floor(number))) : 0;
-}
-function normalizeRecord(record){
-  if(!record || typeof record!=='object') return null;
-  return {
-    completed:Boolean(record.completed),
-    bestStars:safeCount(record.bestStars),
-    completedAt:typeof record.completedAt==='string' ? record.completedAt : null
-  };
-}
-function normalizeProfile(profile){
-  const clean=emptyProfile();
-  if(!profile || typeof profile!=='object') return clean;
-  clean.stars=safeCount(profile.stars);
-  clean.completedLessons=safeCount(profile.completedLessons,weekLetters.length);
-  if(profile.records && typeof profile.records==='object'){
-    weekLetters.forEach((letter,index)=>{
-      const key='lesson-'+index;
-      const record=normalizeRecord(profile.records[key]);
-      if(record){
-        clean.records[key]=record;
-        if(record.completed) clean.completedLessons=Math.max(clean.completedLessons,index+1);
-      }
-    });
-  }
-  const review=normalizeRecord(profile.weeklyReview);
-  if(review) clean.weeklyReview=review;
-  return clean;
-}
-function normalizeData(data){
-  const clean=createDefaultData();
-  if(!data || typeof data!=='object') return clean;
-  const children=data.children && typeof data.children==='object' ? data.children : {};
-  clean.children.older=normalizeProfile(children.older);
-  clean.children.younger=normalizeProfile(children.younger);
-  return clean;
-}
-function migrateLegacy(data){
-  const migrated=createDefaultData();
-  if(data && typeof data==='object'){
-    migrated.children.older.stars=safeCount(data.older && data.older.stars);
-    migrated.children.younger.stars=safeCount(data.younger && data.younger.stars);
-  }
-  return migrated;
-}
-
-let memoryFallback = createDefaultData();
-
-function store(){
-  let data=null;
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw) data=normalizeData(JSON.parse(raw));
-  }catch(e){}
-  if(!data){
-    try{
-      const legacy=localStorage.getItem(LEGACY_STORAGE_KEY);
-      if(legacy) data=migrateLegacy(JSON.parse(legacy));
-    }catch(e){}
-  }
-  if(!data) data=normalizeData(memoryFallback);
-  memoryFallback=clone(data);
-  try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }catch(e){}
-  return clone(data);
-}
-function save(data){
-  const clean=normalizeData(data);
-  memoryFallback=clone(clean);
-  try{
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(clean));
-  }catch(e){
-    // 미리보기/보안 제한 환경에서는 현재 실행 중 메모리에만 저장
-  }
-}
-function show(id){
-  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-function progressText(profile){
-  const review=profile.weeklyReview.completed ? ' · 복습 완료' :
-    (profile.completedLessons>=weekLetters.length ? ' · 복습 가능' : '');
-  return profile.completedLessons+' / '+weekLetters.length+review;
-}
-function renderProgressStrip(elementId,profile){
-  const labels=['1회','2회','3회','4회','5회','복습'];
-  const el=document.getElementById(elementId);
-  el.innerHTML='';
-  labels.forEach((label,index)=>{
-    const div=document.createElement('div');
-    div.className='day';
-    div.textContent=label;
-    if(index<weekLetters.length){
-      if(index<profile.completedLessons) div.classList.add('done');
-      else if(index===profile.completedLessons) div.classList.add('active');
-    }else if(profile.weeklyReview.completed){
-      div.classList.add('done');
-    }else if(profile.completedLessons>=weekLetters.length){
-      div.classList.add('active');
-    }else{
-      div.classList.add('locked');
-    }
-    el.appendChild(div);
-  });
-}
-function updateProgressDisplay(){
-  const data=store();
-  renderProgressStrip('olderProgressStrip',data.children.older);
-  renderProgressStrip('youngerProgressStrip',data.children.younger);
-  document.getElementById('homeOlderProgress').textContent=progressText(data.children.older);
-  document.getElementById('homeYoungerProgress').textContent=progressText(data.children.younger);
-  updateReviewAction();
-}
-function updateReviewAction(){
-  const action=document.getElementById('reviewAction');
-  if(!state.child){ action.hidden=true; return; }
-  const profile=store().children[state.child];
-  if(profile.completedLessons<weekLetters.length){ action.hidden=true; return; }
-  const who=state.child==='older'?'태윤':'재윤';
-  action.hidden=false;
-  document.getElementById('reviewActionTitle').textContent=profile.weeklyReview.completed
-    ? who+' · 이번 주 학습 완료'
-    : who+' · 주간복습 가능';
-  document.getElementById('reviewActionText').textContent=profile.weeklyReview.completed
-    ? '주간복습까지 모두 마쳤어요. 원하면 다시 연습할 수 있어요.'
-    : '5회 학습을 모두 마쳤어요. 준비되면 복습을 시작하세요.';
-  document.getElementById('reviewActionButton').textContent=profile.weeklyReview.completed
-    ? '다시 연습하기'
-    : '주간복습 시작';
-}
-function chooseChild(child){
-  state.child=child;
-  const profile=store().children[child];
-  if(profile.completedLessons>=weekLetters.length){
-    state.mode=profile.weeklyReview.completed?'complete':'review-ready';
-    show('home');
-    updateProgressDisplay();
-    return;
-  }
-  startLesson(profile.completedLessons);
-}
-function startSelectedWeeklyReview(){
-  if(!state.child) return;
-  const profile=store().children[state.child];
-  if(profile.completedLessons>=weekLetters.length) startWeeklyReview();
-}
-function shuffled(a){ return [...a].sort(()=>Math.random()-.5); }
-
-function makeLearnItem(letter, wordObj, phase){
-  return {type:'learn', letter, wordObj, phase};
-}
-function makeQuizItem(letter, wordObj, phase){
-  return {type:'quiz', letter, wordObj, phase};
-}
-
-function startLesson(lessonIndex){
-  state.mode='lesson';
-  state.lessonIndex=lessonIndex;
-  state.currentLetter=weekLetters[lessonIndex];
-  state.items=[];
-  if(lessonIndex>0){
-    const prev=weekLetters[lessonIndex-1];
-    const prevWords=shuffled(words[prev]).slice(0,2);
-    prevWords.forEach(w=>state.items.push(makeQuizItem(prev,w,'review')));
-  }
-  const newWords=shuffled(words[state.currentLetter]).slice(0,3);
-  newWords.forEach((w,i)=>{
-    state.items.push(i===0 ? makeLearnItem(state.currentLetter,w,'new') : makeQuizItem(state.currentLetter,w,'new'));
-  });
-  if(state.child==='older'){
-    state.items.push({type:'combine',letter:state.currentLetter,phase:'new'});
-  } else {
-    state.items.push(makeLearnItem(state.currentLetter,shuffled(words[state.currentLetter])[0],'new'));
-  }
-  begin();
-}
-function startWeeklyReview(){
-  state.mode='weekreview';
-  state.lessonIndex=weekLetters.length;
-  state.items=[];
-  weekLetters.forEach(letter=>{
-    const w=shuffled(words[letter])[0];
-    state.items.push(makeQuizItem(letter,w,'weekreview'));
-  });
-  begin();
-}
-function begin(){
-  state.index=0;
-  state.stars=0;
-  state.answered=false;
-  show('lesson');
-  render();
-}
-function render(){
-  if(state.index>=state.items.length){ finish(); return; }
-  const item=state.items[state.index];
-  state.answered=false;
-  document.getElementById('nextBtn').disabled=true;
-  document.getElementById('feedback').textContent='';
-  document.getElementById('choices').innerHTML='';
-  document.getElementById('progressText').textContent=(state.index+1)+' / '+state.items.length;
-  document.getElementById('progressBar').style.width=(((state.index+1)/state.items.length)*100)+'%';
-  document.getElementById('stars').textContent=state.stars;
-
-  const isReview=item.phase==='review' || item.phase==='weekreview';
-  document.getElementById('phaseBadge').textContent =
-    item.phase==='review' ? '🔁 이전 학습 복습 · 약 3분' :
-    item.phase==='weekreview' ? '🧩 5회 학습 복습 · 약 10분' :
-    '🌱 새 학습 · 약 7분';
-  document.getElementById('timeText').textContent =
-    state.mode==='weekreview' ? '주간 복습' : (state.lessonIndex===0 ? '새 학습 중심' : '복습 3분 + 새 학습 7분');
-
-  if(item.type==='learn'){
-    document.getElementById('lessonTitle').textContent=(state.child==='older'?'태윤':'재윤')+' · '+item.letter+' 배우기';
-    document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
-    document.getElementById('bigLetter').textContent=item.letter;
-    document.getElementById('word').textContent=item.wordObj.word;
-    document.getElementById('hint').textContent =
-      state.child==='older'
-      ? item.wordObj.word+'의 첫 글자는 "'+item.letter+'"이에요.'
-      : '그림을 보고 소리와 글자를 같이 익혀요.';
-    const btn=document.createElement('button');
-    btn.className='choice correct';
-    btn.textContent='알겠어요 👍';
-    btn.onclick=()=>{state.answered=true; document.getElementById('nextBtn').disabled=false; speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');};
-    document.getElementById('choices').appendChild(btn);
-    speak(spokenLetter(item.letter)+'. '+item.wordObj.word);
-    return;
-  }
-
-  if(item.type==='combine'){
-    const vowelMap={'ㄱ':'가','ㄴ':'나','ㄷ':'다','ㄹ':'라','ㅁ':'마','ㅂ':'바'};
-    document.getElementById('lessonTitle').textContent='태윤 · 글자 만들기';
-    document.getElementById('bigEmoji').textContent='🧩';
-    document.getElementById('bigLetter').textContent=item.letter+' + ㅏ';
-    document.getElementById('word').textContent='무슨 글자가 될까요?';
-    document.getElementById('hint').textContent='자음과 모음을 합쳐 보세요.';
-    const answer=vowelMap[item.letter];
-    const options=shuffled([answer,'사','자'].filter((v,i,a)=>a.indexOf(v)===i)).slice(0,3);
-    renderChoices(options, answer, spokenLetter(item.letter)+'과 아가 만나서 '+answer);
-    return;
-  }
-
-  document.getElementById('lessonTitle').textContent=
-    (state.child==='older'?'태윤':'재윤') + (isReview?' · 복습 퀴즈':' · 오늘의 퀴즈');
-  document.getElementById('bigEmoji').textContent=item.wordObj.emoji;
-  document.getElementById('bigLetter').textContent='?';
-  document.getElementById('word').textContent=item.wordObj.word;
-  document.getElementById('hint').textContent =
-    state.child==='older'
-    ? '"'+item.wordObj.word+'"의 첫 글자를 골라보세요.'
-    : '그림 이름을 듣고 첫 글자를 찾아보세요.';
-  const opts=shuffled([item.letter, ...distractors[item.letter].slice(0,2)]);
-  renderChoices(opts,item.letter,item.wordObj.word+'의 첫 글자는 '+spokenLetter(item.letter));
-  speak(item.wordObj.word+'. 첫 글자를 찾아보세요.');
-}
-function renderChoices(options,answer,successSpeech){
-  const wrap=document.getElementById('choices');
-  options.forEach(opt=>{
-    const b=document.createElement('button');
-    b.className='choice';
-    b.textContent=opt;
-    b.onclick=()=>{
-      if(state.answered) return;
-      state.answered=true;
-      [...wrap.children].forEach(x=>x.disabled=true);
-      if(opt===answer){
-        b.classList.add('correct');
-        state.stars++;
-        document.getElementById('stars').textContent=state.stars;
-        document.getElementById('feedback').textContent='🎉 정답! 정말 잘했어요!';
-        speak('정답! '+successSpeech);
-      }else{
-        b.classList.add('wrong');
-        [...wrap.children].forEach(x=>{ if(x.textContent===answer) x.classList.add('correct'); });
-        document.getElementById('feedback').textContent='괜찮아요. 정답을 같이 볼까요?';
-        speak('정답은 '+spokenLetter(answer)+'이에요. 한 번 더 기억해요.');
-      }
-      document.getElementById('nextBtn').disabled=false;
-    };
-    wrap.appendChild(b);
-  });
-}
-function spokenLetter(letter){ return letterSpeech[letter] || letter; }
-function speak(text){
-  if(!('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='ko-KR';
-  u.rate=0.85;
-  u.pitch=1.05;
-  speechSynthesis.speak(u);
-}
-function speakCurrent(){
-  const item=state.items[state.index];
-  if(item.type==='combine') speak(spokenLetter(item.letter)+'과 아를 합쳐 보세요.');
-  else speak(item.wordObj.word+'. '+spokenLetter(item.letter)+' 소리로 시작해요.');
-}
-function nextStep(){ state.index++; render(); }
-function recordCurrentSession(profile){
-  const now=new Date().toISOString();
-  if(state.mode==='weekreview'){
-    const previous=profile.weeklyReview || {completed:false,bestStars:0,completedAt:null};
-    const previousBest=safeCount(previous.bestStars);
-    const awarded=previous.completed ? 0 : state.stars;
-    profile.stars+=awarded;
-    profile.weeklyReview={
-      completed:true,
-      bestStars:Math.max(previousBest,state.stars),
-      completedAt:previous.completedAt || now
-    };
-    return {awarded,firstCompletion:!previous.completed};
-  }
-
-  const key='lesson-'+state.lessonIndex;
-  const previous=profile.records[key] || {completed:false,bestStars:0,completedAt:null};
-  const previousBest=safeCount(previous.bestStars);
-  const awarded=previous.completed ? 0 : state.stars;
-  profile.stars+=awarded;
-  profile.records[key]={
-    completed:true,
-    bestStars:Math.max(previousBest,state.stars),
-    completedAt:previous.completedAt || now
-  };
-  if(!previous.completed){
-    profile.completedLessons=Math.max(profile.completedLessons,state.lessonIndex+1);
-  }
-  return {awarded,firstCompletion:!previous.completed};
-}
-function finish(){
-  document.getElementById('progressBar').style.width='100%';
-  const data=store();
-  const profile=data.children[state.child];
-  const result=recordCurrentSession(profile);
-  save(data);
-  const who=state.child==='older'?'태윤이':'재윤이';
-  const isReview=state.mode==='weekreview';
-  document.getElementById('doneTitle').textContent=isReview?'주간복습 완료!':'오늘 학습 완료!';
-  const rewardText=result.awarded>0
-    ? '누적 별에 <b>⭐ '+result.awarded+'개</b>가 반영되었어요.'
-    : '반복 학습이라 누적 별은 중복해서 늘어나지 않아요.';
-  document.getElementById('doneText').innerHTML=
-    who+'가 오늘 <b>⭐ '+state.stars+'개</b>를 모았어요.<br>'+
-    rewardText+'<br>'+
-    (isReview
-      ? '앞의 5회 학습에서 배운 ㄱ·ㄴ·ㄷ·ㄹ·ㅁ을 한 번씩 다시 확인했습니다.'
-      : '짧게 끝내고 다음 학습에서 다시 만나는 것이 핵심이에요.');
-  show('done');
-  updateProgressDisplay();
-  speak('오늘 한글 놀이 끝! 정말 잘했어요!');
-}
-function repeatToday(){
-  if(state.mode==='weekreview') startWeeklyReview();
-  else startLesson(state.lessonIndex);
-}
-function goHome(){ show('home'); updateProgressDisplay(); }
-function reviewStatus(profile){
-  if(profile.weeklyReview.completed) return '주간복습 완료';
-  return profile.completedLessons>=weekLetters.length ? '주간복습 가능' : '복습 잠김';
-}
-function openParent(){
-  const data=store();
-  const older=data.children.older, younger=data.children.younger;
-  document.getElementById('pOlderStars').textContent=older.stars+'개';
-  document.getElementById('pOlderProgress').textContent=older.completedLessons+' / '+weekLetters.length;
-  document.getElementById('pOlderReview').textContent=reviewStatus(older);
-  document.getElementById('pYoungerStars').textContent=younger.stars+'개';
-  document.getElementById('pYoungerProgress').textContent=younger.completedLessons+' / '+weekLetters.length;
-  document.getElementById('pYoungerReview').textContent=reviewStatus(younger);
-  document.getElementById('parentModal').classList.add('show');
-}
-function closeParent(e){
-  if(e.target.id==='parentModal') e.currentTarget.classList.remove('show');
-}
-updateProgressDisplay();
-
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
-}
-</script>
+<script src="curriculum.js?v=05d2r3"></script>
+<script src="app.js?v=05d2r3"></script>
 </body>
 </html>
